@@ -68,7 +68,7 @@ contract('StatelessVault', function(accounts) {
         await gnosisSafe.setup([lw.accounts[0], lw.accounts[1], accounts[0], accounts[1]], 2, Address0, "0x", accounts[9], Address0, 0, Address0, { from: executor })
     })
 
-    it.only('migrate Safe to Vault and back', async () => {
+    it('migrate Safe to Vault and back', async () => {
         
         const proxy = await IProxy.at(gnosisSafe.address)
         assert.equal(
