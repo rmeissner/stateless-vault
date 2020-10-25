@@ -6,7 +6,7 @@ A secure and flexible smart contract wallet with minimized gas usage.
 
 - Secure transaction execution 
   - Check that delegate calls don't change config
-  - Simple seldestruction protection (as long as there is ETH in the vault it cannot be selfdestructed)
+  - Simple seldestruction protection (as long as there is ETH in the Vault it cannot be selfdestructed)
 - No "hidden" information
   - All information used for authorization and method handling is easily accessible off-chain
 - Similar features as Gnosis Safe with less storage access and therefore lower (and constant) gas costs
@@ -19,7 +19,7 @@ A secure and flexible smart contract wallet with minimized gas usage.
 
 This contract uses merkle proofs and counterfactual addresses to keep the used storage slots to a minimum. Currently **three** storage slots are in use: implementation address, fallback handler address, config hash.
 
-The config hash is the hash of the concatination of the `nonce`, `threshold` and `signersHash`. The `signersHash` is the merkle root hash for the signers of the Safe. When executing a transaction these information need to be provided (e.g. as a merkle proof) as they are not stored on-chain.
+The config hash is the hash of the concatination of the `nonce`, `threshold` and `signersHash`. The `signersHash` is the merkle root hash for the signers of the Vault. When executing a transaction these information need to be provided (e.g. as a merkle proof) as they are not stored on-chain.
 
 It is possible to whitelist addresses for which the multisignature check is ignored. These addresses are known as modules. As modules are normally contracts providing the merkle proof is not very feasable (also this would break compatibility to Gnosis Safe based modules). Therefore a separate contract is used to store the enabled module addresses. Therefore delegate calls cannot directly temper with the storage creating unexpected behaviour (as it is [possible in the Gnosis Safe](https://github.com/gnosis/safe-contracts/issues/198)). To avoid additional storage the address of this management contract is calculated using `create2`. If modules are not used it is not necessary to deploy the management contract therefore saving gas.
 
