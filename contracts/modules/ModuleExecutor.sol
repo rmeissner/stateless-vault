@@ -4,15 +4,24 @@ pragma solidity >=0.7.0 <0.8.0;
 import "./AddressManager.sol";
 import "./CodeProvider.sol";
 
-abstract contract ModuleExecutor {
+contract ModuleExecutorAddress {
     
     bytes32 immutable fallbackManagerCodeHash;
-
-    function execute(address to, uint256 value, bytes memory data, uint8 operation, uint256 txGas) virtual internal returns (bool);
     
     constructor() {
         fallbackManagerCodeHash = keccak256(type(AddressManager).creationCode);
     }
+
+    bytes32 constant MODULE_MANAGER_SALT = keccak256("stateless_vault_module_manager_v1");
+    
+    function moduleManagerAddress() public view returns (address) {
+        return address(uint256(keccak256(abi.encodePacked(byte(0xff), this, MODULE_MANAGER_SALT, fallbackManagerCodeHash))));
+    }
+}
+
+abstract contract ModuleExecutor is ModuleExecutorAddress {
+
+    function execute(address to, uint256 value, bytes memory data, uint8 operation, uint256 txGas) virtual internal returns (bool);
     
     event ExecutionFromModuleSuccess(
         address indexed module
@@ -20,12 +29,6 @@ abstract contract ModuleExecutor {
     event ExecutionFromModuleFailure(
         address indexed module
     );
-    
-    bytes32 constant MODULE_MANAGER_SALT = keccak256("stateless_vault_module_manager_v1");
-    
-    function moduleManagerAddress() public view returns (address) {
-        return address(uint256(keccak256(abi.encodePacked(byte(0xff), this, MODULE_MANAGER_SALT, fallbackManagerCodeHash))));
-    }
     
     function deployModuleManager(CodeProvider codeProvider) public {
         address expectedAddress = moduleManagerAddress();

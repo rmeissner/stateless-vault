@@ -5,17 +5,20 @@ const { Address0, getParamFromTxEvent, assertRejects } = require('./utils/genera
 const { soliditySHA3 } = require('ethereumjs-abi')
 const { bufferToHex  } = require('ethereumjs-util')
 
+const VaultStorageReader = artifacts.require("./VaultStorageReader.sol")
 const Vault = artifacts.require("./StatelessVault.sol")
 const ProxyFactory = artifacts.require("./GnosisSafeProxyFactory.sol")
 
 contract('StatelessVault', function(accounts) {
 
     let vault
+    let vaultReader
     let vaultImplAddrs
     let config
     let executor = accounts[8]
 
     beforeEach(async () => {
+        vaultReader = await VaultStorageReader.deployed()
         let { contractAddress } = await deployTruffleContract(web3, ProxyFactory)
         let proxyFactory = await ProxyFactory.at(contractAddress)
         let vaultImplementation = await Vault.deployed()
@@ -48,7 +51,7 @@ contract('StatelessVault', function(accounts) {
         await execVaultConfigChange('change owners and threshold', vault, vaultImplAddrs, [accounts[0], accounts[1], accounts[2]].sort(), 3, Address0, 1, config, executor, true)
         const signersHash = await buildRoot(config.owners)
         assert.equal(
-            await vault.configHash(),
+            await vaultReader.getConfigHash(vault.address),
             bufferToHex(soliditySHA3(["bytes32", "uint256", "uint256"], [signersHash, "0x3", "0x2"]))
         )
 

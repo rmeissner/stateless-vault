@@ -19,12 +19,14 @@ GnosisSafeProxy.setProvider(web3.currentProvider)
 const SafeToVaultMigration = artifacts.require("./SafeV120ToVaultV1Migration.sol")
 const VaultToSafeMigration = artifacts.require("./VaultV1ToSafeV120Migration.sol")
 const VaultToSafeMigrationCoordinator = artifacts.require("./VaultV1ToSafeV120MigrationCoordinator.sol")
+const VaultStorageReader = artifacts.require("./VaultStorageReader.sol")
 const Vault = artifacts.require("./StatelessVault.sol")
 const IProxy = artifacts.require("./IProxy.sol")
 
 contract('StatelessVault', function(accounts) {
 
     let lw
+    let vaultReader
     let vaultImplAddrs
     let safeImplAddrs
     let migration
@@ -44,8 +46,8 @@ contract('StatelessVault', function(accounts) {
     }
 
     beforeEach(async () => {
-        // Create lightwallet
         lw = await utils.createLightwallet()
+        vaultReader = await VaultStorageReader.deployed()
 
         const gnosisSafeMasterCopy = await GnosisSafe.new({ from: accounts[0] })
         safeImplAddrs = gnosisSafeMasterCopy.address
@@ -95,12 +97,12 @@ contract('StatelessVault', function(accounts) {
 
         const vault = await Vault.at(gnosisSafe.address)
         assert.equal(
-            (await vault.fallbackHandler()).toLowerCase(),
+            (await vaultReader.getFallbackHandler(vault.address)).toLowerCase(),
             fallbackHandlerAddress
         )
         const signersHash = await buildRoot(owners)
         assert.equal(
-            await vault.configHash(),
+            await vaultReader.getConfigHash(vault.address),
             bufferToHex(soliditySHA3(["bytes32", "uint256", "uint256"], [signersHash, threshold, nonce + 1]))
         )
 

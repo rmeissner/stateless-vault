@@ -3,9 +3,10 @@ pragma solidity >=0.7.0 <0.8.0;
 
 import "./base/VaultStorage.sol";
 import "./base/SignatureCheck.sol";
+import "./base/StorageAccessible.sol";
 import "./modules/ModuleExecutor.sol";
 
-contract StatelessVault is VaultStorage, ModuleExecutor, SignatureCheck {
+contract StatelessVault is VaultStorage, ModuleExecutor, SignatureCheck, StorageAccessible {
     
     event Configuration(
         address implementation,
@@ -39,9 +40,12 @@ contract StatelessVault is VaultStorage, ModuleExecutor, SignatureCheck {
     bytes32 constant CONFIG_CHANGE_TYPEHASH = keccak256(
         "ConfigChange(uint256 implementation,bytes signers, uint256 threshold,address fallbackHandler)"
     );
+
+    address immutable public defaultStateReader;
     
-    constructor() {
+    constructor(address stateReader) {
         configHash = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+        defaultStateReader = stateReader;
     }
     
     function setup(
