@@ -173,10 +173,15 @@ contract StatelessVault is VaultStorage, ModuleExecutor, SignatureCheck {
         address currentImplementation = implementation; // Always cheap as we read it to get here
         address currentFallbackHandler = fallbackHandler; // Probably always expensive as it is only read on fallback
         
+        // If delegate call we add a check to avoid that the balance drops to 0, to protect against selfdestructs
+        uint256 balance = (operation == 1) ? address(this).balance : 0;
         // TODO SAFE MATH
         require(gasleft() >= gasLimit * 64 / 63 + 3000, "Not enough gas to execute transaction");
         bool success = execute(to, value, data, operation, gasleft());
         
+        // Perform balance-selfdestruc check
+        require(balance == 0 || address(this).balance > 0, "It is not possible to transafer out all Ether with a delegate call");
+
         // Check that the transaction did not change the configuration
         require(configHash == newConfigHash, "Config hash should not change");
         require(implementation == currentImplementation , "Implementation should not change");

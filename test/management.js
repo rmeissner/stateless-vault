@@ -35,7 +35,7 @@ contract('StatelessVault', function(accounts) {
         )
     })
 
-    it.only('change owners and threshold', async () => {
+    it('change owners and threshold', async () => {
         // Deposit 1 ETH
         assert.equal(await web3.eth.getBalance(vault.address), 0)
         await web3.eth.sendTransaction({from: accounts[9], to: vault.address, value: web3.utils.toWei("1.0", 'ether')})
