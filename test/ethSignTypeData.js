@@ -252,7 +252,7 @@ contract('StatelessVault', function(accounts) {
         return [indeces, hashes]
     }
 
-    let execTransaction = async (subject, vault, to, value, data, operation, gasLimit, nonce, signers, vaultConfig, executor) => {
+    let execTransaction = async (subject, vault, to, value, data, operation, gasLimit, nonce, signers, vaultConfig, executor, rejectOnFail) => {
         //await buildRoot(vaultConfig.owners)
         const [ indeces, hashes ] = await buildProof(signers, vaultConfig.owners)
         //await verifyProof(signers, vaultConfig.owners, indeces, hashes)
@@ -271,7 +271,6 @@ contract('StatelessVault', function(accounts) {
             [vaultConfig.threshold, vaultConfig.owners.length, indeces, hashes, toBuffer(signatures)]
         ).toString('hex')
 
-        console.log({hashes})
         // Debug logs
         /* 
         console.log({validationData})
@@ -293,7 +292,7 @@ contract('StatelessVault', function(accounts) {
             dataHash, nonce, vaultConfig.threshold, vaultConfig.owners.length, indeces, hashes, signatures
         ))
         */
-       logGasUsage(subject, await vault.execTransaction(to, value, data, operation, gasLimit, nonce, validationData, true, { from: executor }))
+       logGasUsage(subject, await vault.execTransaction(to, value, data, operation, gasLimit, nonce, validationData, !!rejectOnFail, { from: executor }))
     }
 
     beforeEach(async () => {
@@ -316,24 +315,27 @@ contract('StatelessVault', function(accounts) {
     })
 
     it('should deposit and withdraw 1 ETH', async () => {
+        console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
         // Deposit 1 ETH + some spare money for execution 
         assert.equal(await web3.eth.getBalance(vault.address), 0)
         await web3.eth.sendTransaction({from: accounts[9], to: vault.address, value: web3.utils.toWei("1.0", 'ether')})
         assert.equal(await web3.eth.getBalance(vault.address), web3.utils.toWei("1.0", 'ether'))
 
-        console.log({config})
-
         // Withdraw 1 ETH
-        await execTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 0, config.defaultSigners, config, executor)
+        await execTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 0, config.defaultSigners, config, executor, true)
 
-        await execTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 1, config.defaultSigners, config, executor)
+        await execTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 1, config.defaultSigners, config, executor, true)
 
         // Should fail as it is over the balance (payment should still happen)
         assertRejects(
-            execTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 2, config.defaultSigners, config, executor),
+            execTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 2, config.defaultSigners, config, executor, true),
             "Revert if transaction fails"
         )
 
+        await execTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 2, config.defaultSigners, config, executor, false)
+
+        console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
+        console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
         assert.equal(await web3.eth.getBalance(vault.address), 0)
     })
 })
