@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.8.0;
 
+/// @title IProxy - Helper interface to access masterCopy of the Proxy on-chain
+/// @author Richard Meissner - <richard@gnosis.io>
+interface IProxy {
+    function masterCopy() external view returns (address);
+}
+
 /// @title GnosisSafeProxy - Generic proxy contract allows to execute all transactions applying the code of a master contract.
 /// @author Stefan George - <stefan@gnosis.io>
 /// @author Richard Meissner - <richard@gnosis.io>
