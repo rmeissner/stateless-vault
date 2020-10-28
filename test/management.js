@@ -30,7 +30,7 @@ contract('StatelessVault', function(accounts) {
             threshold: 2
         }
         let vaultData = await vaultImplementation.contract.methods.setup(
-            config.owners, config.threshold, Address0
+            config.owners, config.threshold, Address0, Address0, Address0
         ).encodeABI()
         vault = await getParamFromTxEvent(
             await proxyFactory.deploy(vaultImplementation.address, vaultData, 0),
@@ -52,7 +52,7 @@ contract('StatelessVault', function(accounts) {
         const signersHash = await buildRoot(config.owners)
         assert.equal(
             await vaultReader.getConfigHash(vault.address),
-            bufferToHex(soliditySHA3(["bytes32", "uint256", "uint256"], [signersHash, "0x3", "0x2"]))
+            bufferToHex(soliditySHA3(["bytes32", "uint256", "address", "address", "uint256"], [signersHash, "0x3", "0x0", "0x0", "0x2"]))
         )
 
         // Deposit 1 ETH

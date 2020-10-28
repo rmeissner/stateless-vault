@@ -22,7 +22,7 @@ contract('StatelessVault', function(accounts) {
             threshold: 3
         }
         let vaultData = await vaultImplementation.contract.methods.setup(
-            config.owners, config.threshold, Address0
+            config.owners, config.threshold, Address0, Address0, Address0
         ).encodeABI()
         vault = await getParamFromTxEvent(
             await proxyFactory.deploy(vaultImplementation.address, vaultData, 0),

@@ -103,7 +103,7 @@ contract('StatelessVault', function(accounts) {
         const signersHash = await buildRoot(owners)
         assert.equal(
             await vaultReader.getConfigHash(vault.address),
-            bufferToHex(soliditySHA3(["bytes32", "uint256", "uint256"], [signersHash, threshold, nonce + 1]))
+            bufferToHex(soliditySHA3(["bytes32", "uint256", "address", "address", "uint256"], [signersHash, threshold, "0x0", "0x0", nonce + 1]))
         )
 
         const config = {
@@ -127,7 +127,7 @@ contract('StatelessVault', function(accounts) {
         const configNonce = 2
         const migrationAddr = await migrationCoordinator.migration()
         const dataHash = await vault.generateConfigChangeHash(
-            migrationAddr, solidityPack(["address[]"], [owners]), threshold, fallbackHandlerAddress, configNonce
+            migrationAddr, solidityPack(["address[]"], [owners]), threshold, Address0, Address0, fallbackHandlerAddress, configNonce
         )
         const validationData = await buildValidationData(dataHash, config.defaultSigners, config)
         await migrationCoordinator.migrate(

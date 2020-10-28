@@ -1,4 +1,4 @@
-const { signTypedData, ethSign, logGasUsage } = require('./general')
+const { signTypedData, ethSign, logGasUsage, Address0 } = require('./general')
 const { buildProof } = require('./proof')
 
 const { rawEncode, solidityPack } = require('ethereumjs-abi')
@@ -67,18 +67,18 @@ const buildValidationData = async (dataHash, signers, vaultConfig) => {
     const [indeces, hashes] = await buildProof(signers, vaultConfig.owners)
     const signatures = await generateSignaturesWithEthSign(dataHash, signers)
     const validationData = "0x" + rawEncode(
-        ["uint256", "uint256", "uint256[]", "bytes32[]", "bytes"],
-        [vaultConfig.threshold, vaultConfig.owners.length, indeces, hashes, toBuffer(signatures)]
+        ["uint256", "uint256", "address", "address", "uint256[]", "bytes32[]", "bytes"],
+        [vaultConfig.threshold, vaultConfig.owners.length, Address0, Address0, indeces, hashes, toBuffer(signatures)]
     ).toString('hex')
     return validationData
 }
 
 const execVaultConfigChange = async (subject, vault, impl, signers, threshold, fallbackHandler, nonce, vaultConfig, executor) => {
     const dataHash = await vault.generateConfigChangeHash(
-        impl, solidityPack(["address[]"], [signers]), threshold, fallbackHandler, nonce
+        impl, solidityPack(["address[]"], [signers]), threshold, Address0, Address0, fallbackHandler, nonce
     )
     const validationData = await buildValidationData(dataHash, vaultConfig.defaultSigners, vaultConfig)
-    logGasUsage(subject, await vault.updateConfig(impl, signers, threshold, fallbackHandler, nonce, validationData, { from: executor }))
+    logGasUsage(subject, await vault.updateConfig(impl, signers, threshold, Address0, Address0, fallbackHandler, nonce, validationData, { from: executor }))
     vaultConfig.threshold = threshold
     vaultConfig.owners = signers
 }
@@ -105,8 +105,10 @@ const execVaultTransaction = async (subject, vault, to, value, data, operation, 
                 dataHash, signatures, i
             ))
         }
+        const validationObject = await vault.decodeValidationData(validationData)
+        console.log(validationObject)
         console.log(await vault.checkValidationData(
-            dataHash, nonce, vaultConfig.threshold, vaultConfig.owners.length, indeces, hashes, signatures
+            dataHash, nonce, validationObject
         ))
         */
     }

@@ -81,7 +81,7 @@ contract SafeV120ToVaultV1Migration {
         ownerCount = 0;
 
         bytes32 signersHash = calculateSignersHash(ownersArray);
-        bytes32 configHash = keccak256(abi.encodePacked(signersHash, configThreshold, configNonce));
+        bytes32 configHash = keccak256(abi.encodePacked(signersHash, configThreshold, address(0), address(0), configNonce));
         bytes32 slot = bytes32(uint256(0x1));
         // solium-disable-next-line security/no-inline-assembly
         assembly {
@@ -94,10 +94,8 @@ contract SafeV120ToVaultV1Migration {
         // Calculate signers hash
         uint256 hashCount = updatedSigners.length;
         bytes32[] memory proofData = new bytes32[](updatedSigners.length);
-        address lastSigner = address(0);
         for (uint i = 0; i < hashCount; i++) {
             address signer = updatedSigners[i];
-            //require(lastSigner < signer, "Signers need to be sorted case-insesitive ascending");
             proofData[i] = keccak256(abi.encode(signer));
         }
         while (hashCount > 1) {

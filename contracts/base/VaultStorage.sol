@@ -8,8 +8,8 @@ contract VaultStorage {
 }
 
 import "./StorageAccessible.sol";
-import "../modules/ModuleExecutor.sol";
-contract VaultStorageReader is VaultStorage, ModuleExecutorAddress {
+import "../modules/ModuleManagerAddress.sol";
+contract VaultStorageReader is VaultStorage, ModuleManagerAddress {
     function readImplementation() public view returns (address) {
         return implementation;
     }
@@ -50,7 +50,7 @@ contract VaultStorageReader is VaultStorage, ModuleExecutorAddress {
     }
 
     function readModules() public view returns (address[] memory) {
-        return AddressManager(moduleManagerAddress()).getMembers();
+        return ModuleManager(moduleManagerAddress()).getModuleAddresses();
     }
 
     function getModules(StorageAccessible target) public view returns (address[] memory) {
@@ -63,7 +63,8 @@ contract VaultStorageReader is VaultStorage, ModuleExecutorAddress {
     }
 
     function checkModuleEnabled(address module) public view returns (bool) {
-        return AddressManager(moduleManagerAddress()).isMember(module);
+        (bool enabled,) = ModuleManager(moduleManagerAddress()).getStatus(module);
+        return enabled;
     }
 
     function isModuleEnabled(StorageAccessible target, address module) public view returns (bool) {

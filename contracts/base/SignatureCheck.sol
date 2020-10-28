@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0 <0.8.0;
 
 contract SignatureCheck {
-    function recoverSigner(bytes32 dataHash, bytes memory signatures, uint256 pos) public view returns(address) {
+    function recoverSigner(bytes32 dataHash, address signatureValidator, bytes memory signatures, uint256 pos) public view returns(address) {
         address signers;
         uint8 v;
         bytes32 r;
@@ -10,7 +10,8 @@ contract SignatureCheck {
         (v, r, s) = signatureSplit(signatures, pos);
         // If v is 0 then it is a contract signature
         if (v == 0) {
-            // TODO
+            // TODO use signatureValidator
+            require(signatureValidator != address(0), "No signature validator set");
             require(false, "Not implemented");
         } else if (v == 1) {
             // When handling approved hashes the address of the approver is encoded into r
