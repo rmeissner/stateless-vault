@@ -84,16 +84,6 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
         
         emit Configuration(implementation, signers, threshold, signatureValidator, requestGuard, _fallbackHandler, 0);
     }
-
-    function generateConfigHash(
-        bytes32 signersHash,
-        uint256 threshold,
-        address signatureValidator,
-        address requestGuard,
-        uint256 nonce
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(signersHash, threshold, signatureValidator, requestGuard, nonce));
-    }
     
     function updateConfig(
         address updatedImplementation,
@@ -137,69 +127,6 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
             updatedFallbackHandler, 
             nonce + 1
         );
-    }
-
-    function decodeValidationData(bytes memory validationBytes) public pure returns (ValidationData memory validationData) {
-        (
-            uint256 threshold,
-            uint256 signerCount,
-            address signatureValidator,
-            address requestGuard,
-            uint256[] memory signerIndeces,
-            bytes32[] memory proofHashes,
-            bytes memory signatures
-        ) = abi.decode(validationBytes, (uint256, uint256, address, address, uint256[], bytes32[], bytes));
-        validationData = ValidationData(threshold, signerCount, signatureValidator, requestGuard, signerIndeces, proofHashes, signatures);
-    }
-    
-    function calculateSignersHash(address[] calldata updatedSigners) internal pure returns(bytes32) {
-        // Calculate signers hash
-        uint256 hashCount = updatedSigners.length;
-        bytes32[] memory proofData = new bytes32[](updatedSigners.length);
-        address lastSigner = address(0);
-        for (uint i = 0; i < hashCount; i++) {
-            address signer = updatedSigners[i];
-            require(lastSigner < signer, "Signers need to be sorted case-insesitive ascending");
-            proofData[i] = keccak256(abi.encode(signer));
-        }
-        while (hashCount > 1) {
-            for (uint i = 0; i < hashCount; i+=2) {
-                bytes32 left = proofData[i];
-                bytes32 right = (i + 1 < hashCount) ? proofData[i + 1] : keccak256(abi.encodePacked(bytes32(0)));
-                proofData[i/2] = keccak256(abi.encodePacked(left, right));
-            }
-            // +1 to cail the value
-            // TODO SAFE MATH
-            hashCount = (hashCount + 1) / 2;
-        }
-        return proofData[0];
-    }
-    
-    fallback()
-        external
-        payable
-    {
-        if (msg.value > 0) {
-            emit ReceivedEther(msg.sender, msg.value);
-        }
-        address handler = fallbackHandler;
-        if (handler != address(0)) {
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                calldatacopy(0, 0, calldatasize())
-                let success := call(gas(), handler, 0, 0, calldatasize(), 0, 0)
-                returndatacopy(0, 0, returndatasize())
-                if eq(success, 0) { revert(0, returndatasize()) }
-                return(0, returndatasize())
-            }
-        }
-    }
-    
-    receive()
-        external
-        payable
-    {
-        emit ReceivedEther(msg.sender, msg.value);
     }
     
     function execTransaction(
@@ -257,6 +184,25 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
         return success;
     }
     
+    function execute(address to, uint256 value, bytes memory data, uint8 operation, uint256 txGas)
+        internal
+        returns (bool success)
+    {
+        // TODO use solidity
+        if (operation == 0)
+            // solium-disable-next-line security/no-inline-assembly
+            assembly {
+                success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0)
+            }
+        else if (operation == 1)
+            // solium-disable-next-line security/no-inline-assembly
+            assembly {
+                success := delegatecall(txGas, to, add(data, 0x20), mload(data), 0, 0)
+            }
+        else
+            success = false;
+    }
+
     function checkValidationData(
         bytes32 dataHash,
         uint256 nonce,
@@ -311,6 +257,46 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
         );
         return proofData[0];
     }
+    
+    /*
+     * Getters and generators
+     */
+    
+    function calculateSignersHash(address[] calldata updatedSigners) internal pure returns(bytes32) {
+        // Calculate signers hash
+        uint256 hashCount = updatedSigners.length;
+        bytes32[] memory proofData = new bytes32[](updatedSigners.length);
+        address lastSigner = address(0);
+        for (uint i = 0; i < hashCount; i++) {
+            address signer = updatedSigners[i];
+            require(lastSigner < signer, "Signers need to be sorted case-insesitive ascending");
+            proofData[i] = keccak256(abi.encode(signer));
+        }
+        while (hashCount > 1) {
+            for (uint i = 0; i < hashCount; i+=2) {
+                bytes32 left = proofData[i];
+                bytes32 right = (i + 1 < hashCount) ? proofData[i + 1] : keccak256(abi.encodePacked(bytes32(0)));
+                proofData[i/2] = keccak256(abi.encodePacked(left, right));
+            }
+            // +1 to cail the value
+            // TODO SAFE MATH
+            hashCount = (hashCount + 1) / 2;
+        }
+        return proofData[0];
+    }
+
+    function decodeValidationData(bytes memory validationBytes) public pure returns (ValidationData memory validationData) {
+        (
+            uint256 threshold,
+            uint256 signerCount,
+            address signatureValidator,
+            address requestGuard,
+            uint256[] memory signerIndeces,
+            bytes32[] memory proofHashes,
+            bytes memory signatures
+        ) = abi.decode(validationBytes, (uint256, uint256, address, address, uint256[], bytes32[], bytes));
+        validationData = ValidationData(threshold, signerCount, signatureValidator, requestGuard, signerIndeces, proofHashes, signatures);
+    }
 
     /// @dev Returns the chain id used by this contract.
     function getChainId() public pure returns (uint256) {
@@ -320,6 +306,16 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
             id := chainid()
         }
         return id;
+    }
+
+    function generateConfigHash(
+        bytes32 signersHash,
+        uint256 threshold,
+        address signatureValidator,
+        address requestGuard,
+        uint256 nonce
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(signersHash, threshold, signatureValidator, requestGuard, nonce));
     }
 
     function generateTxHash(
@@ -348,25 +344,6 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
             abi.encode(CONFIG_CHANGE_TYPEHASH, _implementation, signers, threshold, signatureValidator, requestGuard, _fallbackHandler, nonce)
         );
         return keccak256(abi.encodePacked(byte(0x19), byte(0x01), domainSeparator, configChangeHash));
-    }
-    
-    function execute(address to, uint256 value, bytes memory data, uint8 operation, uint256 txGas)
-        internal
-        returns (bool success)
-    {
-        // TODO use solidity
-        if (operation == 0)
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0)
-            }
-        else if (operation == 1)
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                success := delegatecall(txGas, to, add(data, 0x20), mload(data), 0, 0)
-            }
-        else
-            success = false;
     }
 
     /*
@@ -453,5 +430,36 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
             // Point the return data to the correct memory location
             returnData := ptr
         }
+    }
+
+    /*
+     * Fallback logic
+     */
+    
+    fallback()
+        external
+        payable
+    {
+        if (msg.value > 0) {
+            emit ReceivedEther(msg.sender, msg.value);
+        }
+        address handler = fallbackHandler;
+        if (handler != address(0)) {
+            // solium-disable-next-line security/no-inline-assembly
+            assembly {
+                calldatacopy(0, 0, calldatasize())
+                let success := call(gas(), handler, 0, 0, calldatasize(), 0, 0)
+                returndatacopy(0, 0, returndatasize())
+                if eq(success, 0) { revert(0, returndatasize()) }
+                return(0, returndatasize())
+            }
+        }
+    }
+    
+    receive()
+        external
+        payable
+    {
+        emit ReceivedEther(msg.sender, msg.value);
     }
 }
