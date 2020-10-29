@@ -19,7 +19,7 @@ const generateTxSignaturesWithTypedData = async function (vault, to, value, data
                 { type: "uint256", name: "value" },
                 { type: "bytes", name: "data" },
                 { type: "uint8", name: "operation" },
-                { type: "uint256", name: "gasLimit" },
+                { type: "uint256", name: "minAvailableGas" },
                 { type: "uint256", name: "nonce" },
             ]
         },
@@ -75,17 +75,17 @@ const buildValidationData = async (dataHash, signers, vaultConfig) => {
 
 const execVaultConfigChange = async (subject, vault, impl, signers, threshold, fallbackHandler, nonce, vaultConfig, executor) => {
     const dataHash = await vault.generateConfigChangeHash(
-        impl, solidityPack(["address[]"], [signers]), threshold, Address0, Address0, fallbackHandler, nonce
+        impl, solidityPack(["address[]"], [signers]), threshold, Address0, Address0, fallbackHandler, "0x", nonce
     )
     const validationData = await buildValidationData(dataHash, vaultConfig.defaultSigners, vaultConfig)
-    logGasUsage(subject, await vault.updateConfig(impl, signers, threshold, Address0, Address0, fallbackHandler, nonce, validationData, { from: executor }))
+    logGasUsage(subject, await vault.updateConfig(impl, signers, threshold, Address0, Address0, fallbackHandler, "0x", nonce, validationData, { from: executor }))
     vaultConfig.threshold = threshold
     vaultConfig.owners = signers
 }
 
-const execVaultTransaction = async (subject, vault, to, value, data, operation, gasLimit, nonce, signers, vaultConfig, executor, rejectOnFail) => {
+const execVaultTransaction = async (subject, vault, to, value, data, operation, minAvailableGas, nonce, signers, vaultConfig, executor, rejectOnFail) => {
     const dataHash = await vault.generateTxHash(
-        to, value, data, operation, gasLimit, nonce
+        to, value, data, operation, minAvailableGas, nonce
     )
     const validationData = await buildValidationData(dataHash, signers, vaultConfig)
     { // Debug logs
@@ -112,7 +112,7 @@ const execVaultTransaction = async (subject, vault, to, value, data, operation, 
         ))
         */
     }
-    logGasUsage(subject, await vault.execTransaction(to, value, data, operation, gasLimit, nonce, validationData, !!rejectOnFail, { from: executor }))
+    logGasUsage(subject, await vault.execTransaction(to, value, data, operation, minAvailableGas, nonce, validationData, !!rejectOnFail, { from: executor }))
 }
 
 Object.assign(exports, {

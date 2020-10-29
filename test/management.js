@@ -70,8 +70,8 @@ contract('StatelessVault', function(accounts) {
         await execVaultTransaction('executeTransaction withdraw 1.0 ETH', vault, accounts[9], web3.utils.toWei("1.0", 'ether'), "0x", 0, 0, 2, config.defaultSigners, config, executor, true)
         assert.equal(await web3.eth.getBalance(vault.address), 0)
 
-        console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
     })
 })

@@ -120,23 +120,26 @@ contract('StatelessVault', function(accounts) {
         await execVaultTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("1.0", 'ether'), "0x", 0, 0, 1, config.defaultSigners, config, executor, true)
         assert.equal(await web3.eth.getBalance(vault.address), 0)
 
-        console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
 
         const configNonce = 2
         const migrationAddr = await migrationCoordinator.migration()
         const dataHash = await vault.generateConfigChangeHash(
-            migrationAddr, solidityPack(["address[]"], [owners]), threshold, Address0, Address0, fallbackHandlerAddress, configNonce
+            migrationAddr, solidityPack(["address[]"], [owners]), threshold, Address0, Address0, fallbackHandlerAddress, "0x", configNonce
         )
         const validationData = await buildValidationData(dataHash, config.defaultSigners, config)
-        await migrationCoordinator.migrate(
-            vault.address,
-            owners,
-            threshold,
-            fallbackHandlerAddress,
-            configNonce,
-            validationData
+        utils.logGasUsage(
+            "migrate to Safe",
+            await migrationCoordinator.migrate(
+                vault.address,
+                owners,
+                threshold,
+                fallbackHandlerAddress,
+                configNonce,
+                validationData
+            )
         )
         
         const implFinal = await proxy.masterCopy()
@@ -156,7 +159,7 @@ contract('StatelessVault', function(accounts) {
         assert.equal(await web3.eth.getBalance(vault.address), web3.utils.toWei("1.0", 'ether'))
 
         // Withdraw 1 ETH
-        await execSafeTransaction(gnosisSafe, accounts[9], web3.utils.toWei("1.0", 'ether'), "0x", 0, "executeTransaction withdraw 0.5 ETH")
+        await execSafeTransaction(gnosisSafe, accounts[9], web3.utils.toWei("1.0", 'ether'), "0x", 0, "withdraw 0.5 ETH")
         assert.equal(await web3.eth.getBalance(vault.address), 0)
     })
 })

@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.8.0;
-pragma experimental ABIEncoderV2;
 
-import "./base/VaultStorage.sol";
-import "./base/SignatureCheck.sol";
+import "./base/Executor.sol";
+import './base/Interfaces.sol';
+import "./base/VaultValidator.sol";
 import "./base/StorageAccessible.sol";
 import "./modules/ModuleManagerAddress.sol";
 
-contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, StorageAccessible {
+contract StatelessVault is 
+    VaultValidator,  // Has state
+    Executor,
+    ModuleManagerAddress,
+    StorageAccessible {
     
     event Configuration(
         address implementation,
@@ -37,29 +41,6 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
         address indexed sender, 
         uint amount
     );
-    
-    bytes32 constant DOMAIN_SEPARATOR_TYPEHASH = keccak256(
-        "EIP712Domain(uint256 chainId,address verifyingContract)"
-    );
-
-    bytes32 constant TRANSACTION_TYPEHASH = keccak256(
-        "Transaction(address to,uint256 value,bytes data,uint8 operation,uint256 gasLimit,uint256 nonce)"
-    );
-
-    // Owners are packed encoded (to avoid issues with EIP712)
-    bytes32 constant CONFIG_CHANGE_TYPEHASH = keccak256(
-        "ConfigChange(uint256 implementation,bytes signers, uint256 threshold,address signatureValidator,address requestGuard,address fallbackHandler)"
-    );
-
-    struct ValidationData {
-        uint256 threshold;
-        uint256 signerCount;
-        address signatureValidator;
-        address requestGuard;
-        uint256[] signerIndeces;
-        bytes32[] proofHashes;
-        bytes signatures;
-    }
 
     address immutable public defaultStateReader;
     
@@ -84,40 +65,47 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
         
         emit Configuration(implementation, signers, threshold, signatureValidator, requestGuard, _fallbackHandler, 0);
     }
-    
-    function updateConfig(
+
+    function internalValidateConfigChange(
         address updatedImplementation,
-        address[] calldata updatedSigners,
+        address[] memory updatedSigners,
         uint256 updatedThreshold,
         address updatedSignatureValidator,
         address updatedRequestGuard,
         address updatedFallbackHandler,
+        bytes memory hookBytes,
         uint256 nonce,
         // Validation information
-        bytes memory validationBytes
-    ) public {
-        require(updatedThreshold <= updatedSigners.length, "Threshold cannot be higher than amount of signers");
-        bytes32 dataHash;
-        {
-            dataHash = generateConfigChangeHash(
-                updatedImplementation, 
-                abi.encodePacked(updatedSigners), 
-                updatedThreshold, 
-                updatedSignatureValidator,
-                updatedRequestGuard,
-                updatedFallbackHandler, 
-                nonce
-            );
-            ValidationData memory validationData = decodeValidationData(validationBytes);
-            checkValidationData(dataHash, nonce, validationData);
-        }
-        
+        ValidationData memory validationData
+    ) internal view {
+        bytes32 dataHash = generateConfigChangeHash(
+            updatedImplementation, 
+            abi.encodePacked(updatedSigners), 
+            updatedThreshold, 
+            updatedSignatureValidator,
+            updatedRequestGuard,
+            updatedFallbackHandler,
+            hookBytes,
+            nonce
+        );
+        checkValidationData(dataHash, nonce, validationData);
+    }
+
+    function internalExecuteConfigChange(
+        address updatedImplementation,
+        address[] memory updatedSigners,
+        uint256 updatedThreshold,
+        address updatedSignatureValidator,
+        address updatedRequestGuard,
+        address updatedFallbackHandler,
+        uint256 nonce
+    ) internal returns (bytes32 updateConfigHash) {
         implementation = updatedImplementation;
         fallbackHandler = updatedFallbackHandler;
         
         bytes32 signersHash = calculateSignersHash(updatedSigners);
-        configHash = generateConfigHash(signersHash, updatedThreshold, updatedSignatureValidator, updatedRequestGuard, nonce + 1);
-        
+        updateConfigHash = generateConfigHash(signersHash, updatedThreshold, updatedSignatureValidator, updatedRequestGuard, nonce + 1);
+        configHash = updateConfigHash;
         emit Configuration(
             updatedImplementation, 
             updatedSigners, 
@@ -129,221 +117,126 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
         );
     }
     
-    function execTransaction(
+    function updateConfig(
+        address updatedImplementation,
+        address[] calldata updatedSigners,
+        uint256 updatedThreshold,
+        address updatedSignatureValidator,
+        address updatedRequestGuard,
+        address updatedFallbackHandler,
+        bytes calldata hookBytes,
+        uint256 nonce,
+        // Validation information
+        bytes calldata validationBytes
+    ) external {
+        require(updatedThreshold <= updatedSigners.length, "Threshold cannot be higher than amount of signers");
+        {
+            ValidationData memory validationData = decodeValidationData(validationBytes);
+            internalValidateConfigChange(
+                updatedImplementation, updatedSigners, updatedThreshold, updatedSignatureValidator,
+                updatedRequestGuard, updatedFallbackHandler, hookBytes, nonce, validationData
+            );
+        }
+        
+        internalExecuteConfigChange(
+            updatedImplementation, updatedSigners, updatedThreshold, updatedSignatureValidator,
+            updatedRequestGuard, updatedFallbackHandler, nonce
+        );
+        
+        if (hookBytes.length == 0) return;
+        postConfigUpdateHook(hookBytes);
+    }
+
+    function postConfigUpdateHook(
+        bytes calldata hookBytes
+    ) internal {
+        (
+            address payable hookTo,
+            uint256 hookValue,
+            bytes memory hookData,
+            uint8 hookOperation
+        ) = abi.decode(hookBytes, (address, uint256, bytes, uint8));
+
+        require(checkedExecute(
+            hookTo, hookValue, hookData, hookOperation, 0,
+            true, configHash, implementation, fallbackHandler
+        ));
+    }
+
+    function internalValidateTx(
         // Tx information
+        address to, 
+        uint256 value, 
+        bytes calldata data, 
+        uint8 operation, 
+        uint256 minAvailableGas,
+        uint256 nonce,
+        bytes calldata validationBytes
+    ) internal view returns (bytes32 configHash, bytes32 txHash) {
+        txHash = generateTxHash(to, value, data, operation, minAvailableGas, nonce);
+        ValidationData memory validationData = decodeValidationData(validationBytes);
+        bytes32 signersHash = checkValidationData(txHash, nonce, validationData);
+        // TODO SAFE MATH
+        configHash = generateConfigHash(
+            signersHash, 
+            validationData.threshold, 
+            validationData.signatureValidator, 
+            validationData.requestGuard, 
+            nonce + 1
+        );
+        if (validationData.requestGuard != address(0)) {
+            require(RequestGuard(validationData.requestGuard).check(
+                to, value, data, operation, minAvailableGas, nonce, 
+                validationData.signerCount, validationData.threshold, validationData.signatures
+            ));
+        }
+    }
+
+    function internalExecTx(
+        bytes32 newConfigHash,
         address to, 
         uint256 value, 
         bytes memory data, 
         uint8 operation, 
-        uint256 gasLimit,
-        uint256 nonce,
-        // Validation information
-        bytes memory validationBytes,
+        uint256 minAvailableGas,
         bool revertOnFailure
-    ) public payable returns(bool) {
-        bytes32 newConfigHash;
-        bytes32 dataHash;
-        {
-            dataHash = generateTxHash(to, value, data, operation, gasLimit, nonce);
-            ValidationData memory validationData = decodeValidationData(validationBytes);
-            bytes32 signersHash = checkValidationData(dataHash, nonce, validationData);
-            // TODO SAFE MATH
-            newConfigHash = generateConfigHash(
-                signersHash, 
-                validationData.threshold, 
-                validationData.signatureValidator, 
-                validationData.requestGuard, 
-                nonce + 1
-            );
-            // TODO call request guard
-        }
+    ) internal returns (bool success) {
         // Store data for checking config consistency
         configHash = newConfigHash;
-        address currentImplementation = implementation; // Always cheap as we read it to get here
-        address currentFallbackHandler = fallbackHandler; // Probably always expensive as it is only read on fallback
         
-        // If delegate call we add a check to avoid that the balance drops to 0, to protect against selfdestructs
-        uint256 balance = (operation == 1) ? address(this).balance : 0;
-        // TODO SAFE MATH
-        require(gasleft() >= gasLimit * 64 / 63 + 3000, "Not enough gas to execute transaction");
-        bool success = execute(to, value, data, operation, gasleft());
-        
-        // Perform balance-selfdestruc check
-        require(balance == 0 || address(this).balance > 0, "It is not possible to transfer out all Ether with a delegate call");
-
-        // Check that the transaction did not change the configuration
-        require(configHash == newConfigHash, "Config hash should not change");
-        require(implementation == currentImplementation , "Implementation should not change");
-        require(fallbackHandler == currentFallbackHandler, "Fallback handler should not change");
+        success = checkedExecute(
+            to, value, data, operation, minAvailableGas,
+            true, newConfigHash, implementation, fallbackHandler
+        );
         
         require(!revertOnFailure || success, "Transaction failed and revert on failure is set");
-
-        if (success) emit ExecutionSuccess(nonce, dataHash);
-        else emit ExecutionFailure(nonce, dataHash);
-        
-        return success;
-    }
-    
-    function execute(address to, uint256 value, bytes memory data, uint8 operation, uint256 txGas)
-        internal
-        returns (bool success)
-    {
-        // TODO use solidity
-        if (operation == 0)
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0)
-            }
-        else if (operation == 1)
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                success := delegatecall(txGas, to, add(data, 0x20), mload(data), 0, 0)
-            }
-        else
-            success = false;
     }
 
-    function checkValidationData(
-        bytes32 dataHash,
+    function execTransaction(
+        // Tx information
+        address to, 
+        uint256 value, 
+        bytes calldata data, 
+        uint8 operation, 
+        uint256 minAvailableGas,
         uint256 nonce,
-        ValidationData memory validationData
-    ) public view returns (bytes32) {
-        uint256 recoveredSigner = 0;
-        bytes32[] memory proofData = new bytes32[](validationData.signerCount);
-        address prevSigner = address(0);
-        for (uint i = 0; i < validationData.signerIndeces.length; i++) {
-            address signer = recoverSigner(dataHash, validationData.signatureValidator, validationData.signatures, i);
-            require(signer > prevSigner, "signer > prevSigner");
-            recoveredSigner++;
-            uint256 signerIndex = validationData.signerIndeces[i];
-            require(signerIndex < validationData.signerCount, "signerIndex < signerCount");
-            proofData[signerIndex] = keccak256(abi.encode(signer));
-        }
-        require(recoveredSigner >= validationData.threshold, "recoveredSigner >= threshold");
-        
-        uint256 proofIndex = 0;
-        uint256 hashCount = proofData.length;
-        while (hashCount > 1) {
-            for (uint i = 0; i < hashCount; i+=2) {
-                bytes32 left = proofData[i];
-                bytes32 right = (i + 1 < hashCount) ? proofData[i + 1] : bytes32(0);
-                if (left == bytes32(0) && right == bytes32(0)) {
-                    proofData[i/2] = bytes32(0);
-                    continue;
-                }
-                if (left == bytes32(0)) {
-                    left = validationData.proofHashes[proofIndex];
-                    proofIndex++;
-                }
-                if (right == bytes32(0)) {
-                    right = validationData.proofHashes[proofIndex];
-                    proofIndex++;
-                }
-                proofData[i/2] = keccak256(abi.encodePacked(left, right));
-            }
-            // +1 to cail the value
-            // TODO SAFE MATH
-            hashCount = (hashCount + 1) / 2;
-        }
-        require(
-            generateConfigHash(
-                proofData[0], 
-                validationData.threshold, 
-                validationData.signatureValidator, 
-                validationData.requestGuard, 
-                nonce
-            ) == configHash, 
-            "Config hash is not the same"
-        );
-        return proofData[0];
-    }
-    
-    /*
-     * Getters and generators
-     */
-    
-    function calculateSignersHash(address[] calldata updatedSigners) internal pure returns(bytes32) {
-        // Calculate signers hash
-        uint256 hashCount = updatedSigners.length;
-        bytes32[] memory proofData = new bytes32[](updatedSigners.length);
-        address lastSigner = address(0);
-        for (uint i = 0; i < hashCount; i++) {
-            address signer = updatedSigners[i];
-            require(lastSigner < signer, "Signers need to be sorted case-insesitive ascending");
-            proofData[i] = keccak256(abi.encode(signer));
-        }
-        while (hashCount > 1) {
-            for (uint i = 0; i < hashCount; i+=2) {
-                bytes32 left = proofData[i];
-                bytes32 right = (i + 1 < hashCount) ? proofData[i + 1] : keccak256(abi.encodePacked(bytes32(0)));
-                proofData[i/2] = keccak256(abi.encodePacked(left, right));
-            }
-            // +1 to cail the value
-            // TODO SAFE MATH
-            hashCount = (hashCount + 1) / 2;
-        }
-        return proofData[0];
-    }
-
-    function decodeValidationData(bytes memory validationBytes) public pure returns (ValidationData memory validationData) {
+        // Validation information
+        bytes calldata validationBytes,
+        bool revertOnFailure
+    ) external payable returns(bool success) {
         (
-            uint256 threshold,
-            uint256 signerCount,
-            address signatureValidator,
-            address requestGuard,
-            uint256[] memory signerIndeces,
-            bytes32[] memory proofHashes,
-            bytes memory signatures
-        ) = abi.decode(validationBytes, (uint256, uint256, address, address, uint256[], bytes32[], bytes));
-        validationData = ValidationData(threshold, signerCount, signatureValidator, requestGuard, signerIndeces, proofHashes, signatures);
-    }
-
-    /// @dev Returns the chain id used by this contract.
-    function getChainId() public pure returns (uint256) {
-        uint256 id;
-        // solium-disable-next-line security/no-inline-assembly
-        assembly {
-            id := chainid()
-        }
-        return id;
-    }
-
-    function generateConfigHash(
-        bytes32 signersHash,
-        uint256 threshold,
-        address signatureValidator,
-        address requestGuard,
-        uint256 nonce
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(signersHash, threshold, signatureValidator, requestGuard, nonce));
-    }
-
-    function generateTxHash(
-        address to, uint256 value, bytes memory data, uint8 operation, uint256 gasLimit, uint256 nonce
-    ) public view returns (bytes32) {
-        uint256 chainId = getChainId();
-        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, this));
-        bytes32 txHash = keccak256(
-            abi.encode(TRANSACTION_TYPEHASH, to, value, data, operation, gasLimit, nonce)
+            bytes32 newConfigHash, 
+            bytes32 txHash
+        ) = internalValidateTx(
+            to, value, data, operation, minAvailableGas, nonce, validationBytes
         );
-        return keccak256(abi.encodePacked(byte(0x19), byte(0x01), domainSeparator, txHash));
-    }
-
-    function generateConfigChangeHash(
-        address _implementation, 
-        bytes memory signers, 
-        uint256 threshold, 
-        address signatureValidator, 
-        address requestGuard, 
-        address _fallbackHandler, 
-        uint256 nonce
-    ) public view returns (bytes32) {
-        uint256 chainId = getChainId();
-        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, this));
-        bytes32 configChangeHash = keccak256(
-            abi.encode(CONFIG_CHANGE_TYPEHASH, _implementation, signers, threshold, signatureValidator, requestGuard, _fallbackHandler, nonce)
+        
+        success = internalExecTx(
+            newConfigHash, to, value, data, operation, minAvailableGas, revertOnFailure
         );
-        return keccak256(abi.encodePacked(byte(0x19), byte(0x01), domainSeparator, configChangeHash));
+        
+        if (success) emit ExecutionSuccess(nonce, txHash);
+        else emit ExecutionFailure(nonce, txHash);
     }
 
     /*
@@ -386,21 +279,10 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
             currentFallbackHandler = fallbackHandler; // Probably always expensive as it is only read on fallback
         }
         
-        // If delegate call we add a check to avoid that the balance drops to 0, to protect against selfdestructs
-        uint256 balance = (operation == 1) ? address(this).balance : 0;
-
-        // Execute transaction without further confirmations.
-        success = execute(to, value, data, operation, gasleft());
-        
-        // Perform balance-selfdestruc check
-        require(balance == 0 || address(this).balance > 0, "It is not possible to transfer out all Ether with a delegate call");
-
-        // Check that the transaction did not change the configuration if not empowered
-        if (!empowered) {
-            require(configHash == currentConfigHash, "Config hash should not change");
-            require(implementation == currentImplementation , "Implementation should not change");
-            require(fallbackHandler == currentFallbackHandler, "Fallback handler should not change");
-        }
+        success = checkedExecute(
+            to, value, data, operation, 0, 
+            !empowered, currentConfigHash, currentImplementation, currentFallbackHandler
+        );
 
         if (success) emit ExecutionFromModuleSuccess(msg.sender);
         else emit ExecutionFromModuleFailure(msg.sender);
@@ -429,6 +311,40 @@ contract StatelessVault is VaultStorage, ModuleManagerAddress, SignatureCheck, S
             returndatacopy(add(ptr, 0x20), 0, returndatasize())
             // Point the return data to the correct memory location
             returnData := ptr
+        }
+    }
+
+    /*
+     * Execute logic
+     */ 
+
+    function checkedExecute(
+        address to, 
+        uint256 value, 
+        bytes memory data, 
+        uint8 operation, 
+        uint256 minAvailableGas,
+        bool check,
+        bytes32 expectedConfigHash,
+        address expectedImplementation,
+        address expectedFallbackHandler
+    ) internal returns (bool success) {
+        
+        // If delegate call we add a check to avoid that the balance drops to 0, to protect against selfdestructs
+        uint256 balance = (operation != 0) ? address(this).balance : 0;
+
+        // TODO SAFE MATH
+        require(gasleft() >= minAvailableGas * 64 / 63 + 3000, "Not enough gas to execute transaction");
+        success = execute(to, value, data, operation, gasleft());
+        
+        // Perform balance-selfdestruc check
+        require(balance == 0 || address(this).balance > 0, "It is not possible to transfer out all Ether with a delegate call");
+
+        // Check that the transaction did not change the configuration if not empowered
+        if (check || operation != 0) {
+            require(configHash == expectedConfigHash, "Config hash should not change");
+            require(implementation == expectedImplementation, "Implementation should not change");
+            require(fallbackHandler == expectedFallbackHandler, "Fallback handler should not change");
         }
     }
 

@@ -33,7 +33,7 @@ contract('StatelessVault', function(accounts) {
 
     it('protect against suicide', async () => {
         let suicider = await Suicider.new()
-        console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
         // Deposit 1 ETH + some spare money for execution 
         const vaultCode = await web3.eth.getCode(vault.address)
         assert.equal(await web3.eth.getBalance(vault.address), 0)
@@ -55,7 +55,7 @@ contract('StatelessVault', function(accounts) {
         await execVaultTransaction('selfdestruct vault', vault, suicider.address, 0, "0x", 1, 0, 1, config.defaultSigners, config, executor, true)
         assert.equal(await web3.eth.getCode(vault.address), "0x")
 
-        console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
     })
 })
