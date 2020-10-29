@@ -12,7 +12,6 @@ contract SignatureCheck {
         (v, r, s) = signatureSplit(signatures, pos);
         // If v is 0 then it is a contract signature
         if (v == 0) {
-            // TODO use signatureValidator
             require(signatureValidator != address(0), "No signature validator set");
             
             // When handling contract signatures the address of the contract is encoded into r

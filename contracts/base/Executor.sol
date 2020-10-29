@@ -2,21 +2,14 @@
 pragma solidity >=0.7.0 <0.8.0;
 
 contract Executor {
-    function execute(address to, uint256 value, bytes memory data, uint8 operation, uint256 txGas)
+    function execute(address payable to, uint256 value, bytes memory data, uint8 operation, uint256 txGas)
         internal
         returns (bool success)
     {
-        // TODO use solidity
         if (operation == 0)
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                success := call(txGas, to, value, add(data, 0x20), mload(data), 0, 0)
-            }
+            (success,) = to.call{value: value, gas: txGas}(data);
         else if (operation == 1)
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                success := delegatecall(txGas, to, add(data, 0x20), mload(data), 0, 0)
-            }
+            (success,) = to.delegatecall{gas: txGas}(data);
         else
             success = false;
     }

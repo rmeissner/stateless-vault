@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.8.0;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./base/Executor.sol";
 import './base/Interfaces.sol';
 import "./base/VaultValidator.sol";
@@ -12,6 +13,8 @@ contract StatelessVault is
     Executor,
     ModuleManagerAddress,
     StorageAccessible {
+    
+    using SafeMath for uint256;
     
     event Configuration(
         address implementation,
@@ -160,7 +163,7 @@ contract StatelessVault is
         require(checkedExecute(
             hookTo, hookValue, hookData, hookOperation, 0,
             true, configHash, implementation, fallbackHandler
-        ));
+        ), "Post config update hook failed");
     }
 
     function internalValidateTx(
@@ -176,13 +179,12 @@ contract StatelessVault is
         txHash = generateTxHash(to, value, data, operation, minAvailableGas, nonce);
         ValidationData memory validationData = decodeValidationData(validationBytes);
         bytes32 signersHash = checkValidationData(txHash, nonce, validationData);
-        // TODO SAFE MATH
         configHash = generateConfigHash(
             signersHash, 
             validationData.threshold, 
             validationData.signatureValidator, 
             validationData.requestGuard, 
-            nonce + 1
+            nonce.add(1)
         );
         if (validationData.requestGuard != address(0)) {
             require(RequestGuard(validationData.requestGuard).check(
@@ -194,7 +196,7 @@ contract StatelessVault is
 
     function internalExecTx(
         bytes32 newConfigHash,
-        address to, 
+        address payable to, 
         uint256 value, 
         bytes memory data, 
         uint8 operation, 
@@ -214,7 +216,7 @@ contract StatelessVault is
 
     function execTransaction(
         // Tx information
-        address to, 
+        address payable to, 
         uint256 value, 
         bytes calldata data, 
         uint8 operation, 
@@ -260,7 +262,7 @@ contract StatelessVault is
     /// @param value Ether value of module transaction.
     /// @param data Data payload of module transaction.
     /// @param operation Operation type of module transaction.
-    function execTransactionFromModule(address to, uint256 value, bytes memory data, uint8 operation)
+    function execTransactionFromModule(address payable to, uint256 value, bytes memory data, uint8 operation)
         public
         returns (bool success)
     {
@@ -293,7 +295,7 @@ contract StatelessVault is
     /// @param value Ether value of module transaction.
     /// @param data Data payload of module transaction.
     /// @param operation Operation type of module transaction.
-    function execTransactionFromModuleReturnData(address to, uint256 value, bytes memory data, uint8 operation)
+    function execTransactionFromModuleReturnData(address payable to, uint256 value, bytes memory data, uint8 operation)
         public
         returns (bool success, bytes memory returnData)
     {
@@ -319,7 +321,7 @@ contract StatelessVault is
      */ 
 
     function checkedExecute(
-        address to, 
+        address payable to, 
         uint256 value, 
         bytes memory data, 
         uint8 operation, 
@@ -333,8 +335,7 @@ contract StatelessVault is
         // If delegate call we add a check to avoid that the balance drops to 0, to protect against selfdestructs
         uint256 balance = (operation != 0) ? address(this).balance : 0;
 
-        // TODO SAFE MATH
-        require(gasleft() >= minAvailableGas * 64 / 63 + 3000, "Not enough gas to execute transaction");
+        require(gasleft() >= minAvailableGas.mul(64).div(63).add(3000), "Not enough gas to execute transaction");
         success = execute(to, value, data, operation, gasleft());
         
         // Perform balance-selfdestruc check

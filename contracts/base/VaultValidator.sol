@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity >=0.7.0 <0.8.0;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import './HashGenerator.sol';
 import './SignatureCheck.sol';
 import './VaultStorage.sol';
 
 contract VaultValidator is VaultStorage, SignatureCheck, HashGenerator {
+    
+    using SafeMath for uint256;
 
     struct ValidationData {
         uint256 threshold; // uint32
@@ -55,9 +58,8 @@ contract VaultValidator is VaultStorage, SignatureCheck, HashGenerator {
                 }
                 proofData[i/2] = keccak256(abi.encodePacked(left, right));
             }
-            // +1 to cail the value
-            // TODO SAFE MATH
-            hashCount = (hashCount + 1) / 2;
+            // +1 to ceil the value
+            hashCount = hashCount.add(1).div(2);
         }
         require(
             generateConfigHash(
@@ -88,9 +90,8 @@ contract VaultValidator is VaultStorage, SignatureCheck, HashGenerator {
                 bytes32 right = (i + 1 < hashCount) ? proofData[i + 1] : keccak256(abi.encodePacked(bytes32(0)));
                 proofData[i/2] = keccak256(abi.encodePacked(left, right));
             }
-            // +1 to cail the value
-            // TODO SAFE MATH
-            hashCount = (hashCount + 1) / 2;
+            // +1 to ceil the value
+            hashCount = hashCount.add(1).div(2);
         }
         return proofData[0];
     }
