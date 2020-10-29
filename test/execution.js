@@ -17,8 +17,8 @@ contract('StatelessVault', function(accounts) {
         let vaultImplementation = await Vault.deployed()
         // Create Vault       
         config = {
-            owners: [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4], accounts[5]].sort(),
-            defaultSigners: [accounts[0], accounts[1], accounts[2]].sort(),
+            owners: [accounts[0], accounts[1], accounts[2], accounts[3], accounts[4], accounts[5], accounts[6], accounts[7]],
+            defaultSigners: [accounts[0], accounts[1], accounts[2], accounts[3]],
             threshold: 3
         }
         let vaultData = await vaultImplementation.contract.methods.setup(

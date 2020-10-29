@@ -4,7 +4,12 @@ const { bufferToHex  } = require('ethereumjs-util')
 const buildProof = async (signers, owners, log) => {
     if (log) console.log("BUILD PROOF")
     if (log) console.log({ owners })
-    const indeces = signers.map(signer => owners.indexOf(signer))
+    const ownersCopy = [...owners]
+    const indeces = signers.map(signer => {
+        const i = ownersCopy.indexOf(signer)
+        ownersCopy[i] = null
+        return i
+    })
     const hashes = []
     const nodes = owners.map(owner => signers.indexOf(owner) < 0 ? bufferToHex(soliditySHA3(["uint256"], [owner])) : "0x0")
     if (log) console.log({ nodes })

@@ -27,12 +27,14 @@ contract VaultValidator is VaultStorage, SignatureCheck, HashGenerator {
     ) internal view returns (bytes32) {
         uint256 recoveredSigner = 0;
         bytes32[] memory proofData = new bytes32[](validationData.signerCount);
-        address prevSigner = address(0);
+        uint256 prevSignerIndex = 0;
         for (uint i = 0; i < validationData.signerIndeces.length; i++) {
             address signer = recoverSigner(dataHash, validationData.signatureValidator, validationData.signatures, i);
-            require(signer > prevSigner, "signer > prevSigner");
             recoveredSigner++;
             uint256 signerIndex = validationData.signerIndeces[i];
+            // Make sure we are not provided with duplicate indeces (add 1 to account for index 0)
+            require(signerIndex + 1 > prevSignerIndex, "signerIndex + 1 > prevSignerIndex");
+            prevSignerIndex = signerIndex + 1;
             require(signerIndex < validationData.signerCount, "signerIndex < signerCount");
             proofData[signerIndex] = keccak256(abi.encode(signer));
         }
@@ -78,10 +80,9 @@ contract VaultValidator is VaultStorage, SignatureCheck, HashGenerator {
         // Calculate signers hash
         uint256 hashCount = updatedSigners.length;
         bytes32[] memory proofData = new bytes32[](updatedSigners.length);
-        address lastSigner = address(0);
         for (uint i = 0; i < hashCount; i++) {
             address signer = updatedSigners[i];
-            require(lastSigner < signer, "Signers need to be sorted case-insesitive ascending");
+            require(signer != address(0), "Invalid signer provided");
             proofData[i] = keccak256(abi.encode(signer));
         }
         while (hashCount > 1) {
