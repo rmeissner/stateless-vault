@@ -3,7 +3,7 @@ set -e
 pwd=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 echo $pwd
 
-rm -f $pwd/.env.deploy
+rm -f $pwd/docker/.env
 cp $pwd/../.env $pwd/docker/.env
 echo $'\nNETWORK='$1 >> $pwd/docker/.env
 

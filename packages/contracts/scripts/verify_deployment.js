@@ -81,12 +81,34 @@ process = async () => {
         });
         const compiled = solcjs.compile(JSON.stringify(input));
         const output = JSON.parse(compiled);
-        const contract = output.contracts[fileName][contractName];
         const address = network[c][networkId]["address"]
+        const contract = output.contracts[fileName][contractName];
+        const immutableMeta = require(path.join("..", metaDir, `immutableMeta.json`));
+        let localBytecode = `0x${contract.evm.deployedBytecode.object}`
+        const refs = Object.values(contract.evm.deployedBytecode.immutableReferences).map((v) => v[0])
+        refs.sort((a, b) => {
+            return (a.start - b.start)
+        })
+        for (i in refs) {
+            const start = refs[i].start * 2 + 2 // Hex prefix
+            const length = refs[i].length * 2
+            localBytecode = localBytecode.slice(0, start) + immutableMeta[address][i] + localBytecode.slice(start + length)
+        }
         console.log(`Address: ${address}`)
         const onchainBytecode = await web3.eth.getCode(address);
         const onchainBytecodeHash = web3.utils.sha3(onchainBytecode)
-        const localBytecodeHash = web3.utils.sha3(`0x${contract.evm.deployedBytecode.object}`)
+        let x = 0
+        while(x < Math.min(onchainBytecode.length, localBytecode.length)) {
+            const onchainSeg = onchainBytecode.slice(x, Math.min(x+64, onchainBytecode.length))
+            const localSeg = localBytecode.slice(x, Math.min(x+64, localBytecode.length))
+            if (onchainSeg != localSeg) {
+                console.log(`------${x/64}`)
+                console.log(onchainSeg)
+                console.log(localSeg)
+            }
+            x += 64
+        }
+        const localBytecodeHash = web3.utils.sha3(localBytecode)
         console.log(`On-chain bytecode hash:  ${onchainBytecodeHash}`)
         console.log(`Local bytecode hash:     ${localBytecodeHash}`)
         const verifySuccess = onchainBytecodeHash === localBytecodeHash ? "SUCCESS" : "FAILURE"
