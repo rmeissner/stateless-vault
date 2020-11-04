@@ -42,7 +42,7 @@ contract HashGenerator {
         uint256 chainId = getChainId();
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, this));
         bytes32 txHash = keccak256(
-            abi.encode(TRANSACTION_TYPEHASH, to, value, data, operation, minAvailableGas, nonce)
+            abi.encode(TRANSACTION_TYPEHASH, to, value, keccak256(data), operation, minAvailableGas, nonce)
         );
         return keccak256(abi.encodePacked(byte(0x19), byte(0x01), domainSeparator, txHash));
     }
@@ -60,7 +60,7 @@ contract HashGenerator {
         uint256 chainId = getChainId();
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, this));
         bytes32 configChangeHash = keccak256(
-            abi.encode(CONFIG_CHANGE_TYPEHASH, _implementation, signers, threshold, signatureValidator, requestGuard, _fallbackHandler, hookBytes, nonce)
+            abi.encode(CONFIG_CHANGE_TYPEHASH, _implementation, keccak256(signers), threshold, signatureValidator, requestGuard, _fallbackHandler, keccak256(hookBytes), nonce)
         );
         return keccak256(abi.encodePacked(byte(0x19), byte(0x01), domainSeparator, configChangeHash));
     }

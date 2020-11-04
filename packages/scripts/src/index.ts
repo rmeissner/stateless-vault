@@ -1,12 +1,17 @@
 import FactoryAbi from './abis/Factory.json'
 import { config } from 'dotenv'
+import IpfsClient from 'ipfs-http-client';
+import EIP712Domain from "eth-typed-data";
 import { Contract, ethers, constants, utils, Signer, Wallet, BigNumber } from 'ethers'
+import { buildValidationData } from './utils/proof'
+import { pullWithKeccak } from './utils/ipfs'
 import StatelessVault from '@rmeissner/stateless-vault-contracts/build/contracts/StatelessVault.json'
 config()
 
 const mnemonic = process.env.MNEMONIC!!
 const rpcUrl = process.env.RPC_URL!!
 const browserUrlTx = process.env.BROWSER_URL_TX!!
+const browserUrlAddress = process.env.BROWSER_URL_ADDRESS!!
 
 export interface FactoryConfig {
     factoryAddress: string,
@@ -58,7 +63,7 @@ export class VaultFactory {
     }
 }
 
-interface VaultConfig extends VaultSetup {
+export interface VaultConfig extends VaultSetup {
     implementation: string,
     signatureChecker: string,
     requestGuard: string,
@@ -178,61 +183,75 @@ export class Vault {
         return currentConfig
     }
 
-    async buildProof(txSigners: string[], allSigners: string[]): Promise<{ indeces: number[], hashes: string[] }> {
-        const ownersCopy: (string | null)[] = [...allSigners]
-        const indeces = txSigners.map(signer => {
-            const i = ownersCopy.indexOf(signer)
-            ownersCopy[i] = null
-            return i
-        })
-        const hashes = []
-        const nodes = allSigners.map(signer => txSigners.indexOf(signer) < 0 ? utils.solidityKeccak256(["uint256"], [signer]) : "0x0")
-        let nodesCount = nodes.length
-        while (nodesCount > 1) {
-            for (let i = 0; i < nodesCount; i += 2) {
-                let left = nodes[i]
-                let right
-                if (i + 1 < nodesCount) {
-                    right = nodes[i + 1]
-                } else {
-                    right = utils.solidityKeccak256(["uint256"], ["0x0"])
-                }
-                if (left == "0x0" && right == "0x0") {
-                    nodes[Math.floor(i / 2)] = "0x0"
-                    continue;
-                }
-                if (left == "0x0") {
-                    hashes.push(right)
-                    nodes[Math.floor(i / 2)] = "0x0"
-                    continue;
-                }
-                if (right == "0x0") {
-                    hashes.push(left)
-                    nodes[Math.floor(i / 2)] = "0x0"
-                    continue;
-                }
-                nodes[Math.floor(i / 2)] = utils.solidityKeccak256(["bytes32", "bytes32"], [left, right]);
-            }
-            nodesCount = Math.ceil(nodesCount / 2)
-        }
-
-        return { indeces, hashes }
-    }
-
-    async buildValidationData(vaultConfig: VaultConfig, signatures: string, signers: string[]): Promise<string> {
-        const { indeces, hashes } = await this.buildProof(signers, vaultConfig.signers)
-        const validationData = utils.defaultAbiCoder.encode(
-            ["uint256", "uint256", "address", "address", "uint256[]", "bytes32[]", "bytes"],
-            [vaultConfig.threshold, vaultConfig.signers.length, constants.AddressZero, constants.AddressZero, indeces, hashes, signatures]
-        )
-        return validationData
-    }
-
     async signExec(to: string, value: BigNumber, data: string, operation: number, nonce: BigNumber): Promise<string> {
         const dataHash = await this.vaultInstance.generateTxHash(
             to, value, data, operation, 0, nonce
         )
         return await this.signer.signMessage(utils.arrayify(dataHash))
+    }
+
+    async signExecFromHash(ipfs: any, txHash: string): Promise<string> {
+        const hashData = await pullWithKeccak(ipfs, txHash)
+        const tx = await pullWithKeccak(ipfs, hashData.substring(68))
+        const txData = await pullWithKeccak(ipfs, tx.substring(3*64, 4*64))
+        const to = utils.getAddress(tx.substring(64 + 24, 2*64))
+        const value = BigNumber.from("0x" + tx.substring(2*64, 3*64))
+        const data = "0x" + txData
+        const operation = parseInt(tx.substring(4*64, 5*64), 16)
+        const minAvailableGas = BigNumber.from("0x" + tx.substring(5*64, 6*64))
+        const nonce = BigNumber.from("0x" + tx.substring(6*64, 7*64))
+        console.log(`To: ${to}`)
+        console.log(`Value: ${value}`)
+        console.log(`Data: ${data}`)
+        console.log(`Operation: ${operation}`)
+        console.log(`Minimum available gas: ${minAvailableGas}`)
+        console.log(`Nonce: ${nonce}`)
+        const dataHash = await this.vaultInstance.generateTxHash(
+            to, value, data, operation, minAvailableGas, nonce
+        )
+        return await this.signer.signMessage(utils.arrayify(dataHash))
+    }
+
+    async publishExec(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber): Promise<string> {
+        const data = utils.arrayify(dataString)
+        const vaultDomain = new EIP712Domain({
+            chainId: 4,
+            verifyingContract: this.address,
+        });
+
+        const VaultTx = vaultDomain.createType('Transaction', [
+            { type: "address", name: "to" },
+            { type: "uint256", name: "value" },
+            { type: "bytes", name: "data" },
+            { type: "uint8", name: "operation" },
+            { type: "uint256", name: "minAvailableGas" },
+            { type: "uint256", name: "nonce" },
+        ]);
+
+        const minAvailableGas = 0
+        const vaultTx = new VaultTx({
+            to, 
+            value: value.toHexString(), data, operation, minAvailableGas, nonce: nonce.toNumber()
+        });
+
+        // data
+        console.log("Publish data")
+        for await (const res of ipfs.add(data, { hashAlg: "keccak-256" })) {
+            console.log(`metadata: ${res.path}`);
+        }
+        // TX_TYPEHASH, to, value, keccak256(data), operation, minAvailableGas, nonce
+        console.log("Publish tx")
+        for await (const res of ipfs.add(vaultTx.encodeData(), { hashAlg: "keccak-256" })) {
+            console.log(`metadata: ${res.path}`);
+        }
+
+        // byte(0x19), byte(0x01), domainSeparator, txHash
+        console.log("Publish tx hash")
+        const txHash = "0x" + vaultTx.signHash().toString('hex')
+        for await (const res of ipfs.add(vaultTx.encode(), { hashAlg: "keccak-256" })) {
+            console.log(`metadata: ${res.path}`);
+        }
+        return txHash
     }
 
     async signUpdate(newSigners: string[], newThreshold: BigNumber, nonce: BigNumber): Promise<string> {
@@ -255,7 +274,7 @@ export class Vault {
         let signers: string[]
         if (signatures) {
             const dataHash = await hashProvider()
-            sigs = signatures.map((sig) => sig.slice(2).replace(/00$/,"1f").replace(/1b$/,"1f").replace(/01$/,"20").replace(/1c$/,"20"))
+            sigs = signatures.map((sig) => sig.slice(2).replace(/00$/, "1f").replace(/1b$/, "1f").replace(/01$/, "20").replace(/1c$/, "20"))
             let prevIndex = -1
             signers = signatures.map((sig) => {
                 const signer = utils.verifyMessage(utils.arrayify(dataHash), sig)
@@ -272,7 +291,7 @@ export class Vault {
         } else {
             throw Error("Cannot execute transaction due to missing confirmation")
         }
-        console.log({sigs})
+        console.log({ sigs })
         return { signaturesString: "0x" + sigs.join(""), signers }
     }
 
@@ -291,8 +310,8 @@ export class Vault {
                 nonce
             )
         }, signatures)
-        const validationData = await this.buildValidationData(config, signaturesString, signers)
-        
+        const validationData = await buildValidationData(config, signaturesString, signers)
+
         console.log(await this.vaultInstance.callStatic.updateConfig(
             config.implementation,
             newSigners,
@@ -304,7 +323,7 @@ export class Vault {
             nonce,
             validationData
         ))
-        
+
         await this.vaultInstance.updateConfig(
             config.implementation,
             newSigners,
@@ -326,11 +345,17 @@ export class Vault {
                 to, value, data, operation, 0, nonce
             )
         }, signatures)
-        const validationData = await this.buildValidationData(config, signaturesString, signers)
+        const validationData = await buildValidationData(config, signaturesString, signers)
         //console.log(await this.vaultInstance.callStatic.execTransaction(to, value, data, operation, 0, config.nonce, validationData, true))
         await this.vaultInstance.execTransaction(to, value, data, operation, 0, config.nonce, validationData, true)
     }
 }
+
+const ipfs = IpfsClient({
+    host: 'ipfs.infura.io',
+    port: 5001,
+    protocol: 'https'
+});
 
 const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 const signer = Wallet.fromMnemonic(mnemonic).connect(provider)
@@ -345,10 +370,14 @@ const test = async () => {
         signers: [await signer.getAddress()],
         threshold: BigNumber.from(1)
     }, "test_vault")
+    console.log(`Vault @ ${browserUrlAddress.replace("{}", vault.address)}`)
     const vault2 = new Vault(signer2, vault.address)
     const config = await vault.loadConfig()
-    console.log(config)
+    console.log({config})
     console.log(await vault.loadTransactions())
+    const txHash = await vault.publishExec(ipfs, vault.address, BigNumber.from(42), "0xbaddad", 1, config.nonce)
+    console.log({txHash})
+    await vault.signExecFromHash(ipfs, txHash)
     /*
     const sig1 = await vault.signUpdate([await signer.getAddress(), await signer2.getAddress()], BigNumber.from(2), config.nonce)
     const sig2 = await vault2.signUpdate([await signer.getAddress(), await signer2.getAddress()], BigNumber.from(2), config.nonce)
