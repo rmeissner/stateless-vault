@@ -103,7 +103,9 @@ contract StatelessVault is
         address updatedFallbackHandler,
         uint256 nonce
     ) internal returns (bytes32 updateConfigHash) {
-        implementation = updatedImplementation;
+        if (updatedImplementation != address(0)) {
+            implementation = updatedImplementation;
+        }
         fallbackHandler = updatedFallbackHandler;
         
         bytes32 signersHash = calculateSignersHash(updatedSigners);

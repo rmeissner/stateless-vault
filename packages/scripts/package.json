@@ -1,0 +1,47 @@
+{
+  "name": "@rmeissner/stateless-vault-scripts",
+  "version": "1.0.0",
+  "description": "A 'stateless' multisignature smart wallet for Ethereum",
+  "homepage": "https://github.com/rmeissner/stateless-vault/",
+  "license": "LGPL-3.0-only",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "scripts": {
+    "prepublish": "yarn build",
+    "build": "yarn rimraf dist && yarn tsc",
+    "go": "ts-node src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rmeissner/stateless-vault.git"
+  },
+  "keywords": [
+    "Ethereum"
+  ],
+  "author": "msc.meissner@gmail.com",
+  "bugs": {
+    "url": "https://github.com/rmeissner/stateless-vault/issues"
+  },
+  "dependencies": {
+    "@rmeissner/stateless-vault-contracts": "^1.0.0",
+    "@types/ethereumjs-abi": "^0.6.3",
+    "@types/ethereumjs-util": "^6.1.0",
+    "axios": "^0.20.0",
+    "bignumber.js": "^9.0.0",
+    "cid": "^0.1.0",
+    "ethers": "^5.0.8",
+    "ethereumjs-abi": "^0.6.8",
+    "ethereumjs-util": "^6.2.0",
+    "ipfs-http-client": "^44.2.0",
+    "dotenv": "^8.0.0"
+  },
+  "devDependencies": {
+    "ts-node": "^9.0.0",
+    "rimraf": "^3.0.2",
+    "typescript": "^3.9.7"
+  }
+}
