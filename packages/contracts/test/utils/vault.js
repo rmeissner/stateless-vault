@@ -4,8 +4,8 @@ const { buildProof } = require('./proof')
 const { rawEncode, solidityPack } = require('ethereumjs-abi')
 const { toBuffer } = require('ethereumjs-util')
 
-const generateTxSignaturesWithTypedData = async function (vault, to, value, data, operation, gasLimit, nonce, signers) {
-    let chainId = (await vault.getChainId()).toNumber()
+const generateTxSignaturesWithTypedData = async function (vault, to, value, data, operation, gasLimit, nonce, metaHash, signers) {
+    let chainId = await web3.eth.getChainId()
     console.log({ chainId })
     let typedData = {
         types: {
@@ -13,7 +13,6 @@ const generateTxSignaturesWithTypedData = async function (vault, to, value, data
                 { type: "uint256", name: "chainId" },
                 { type: "address", name: "verifyingContract" }
             ],
-            // "Transaction(address to,uint256 value,bytes data,uint8 operation,uint256 gasLimit,uint256 nonce)"
             Transaction: [
                 { type: "address", name: "to" },
                 { type: "uint256", name: "value" },
@@ -21,6 +20,7 @@ const generateTxSignaturesWithTypedData = async function (vault, to, value, data
                 { type: "uint8", name: "operation" },
                 { type: "uint256", name: "minAvailableGas" },
                 { type: "uint256", name: "nonce" },
+                { type: "bytes32", name: "metaHash" },
             ]
         },
         domain: {
@@ -34,7 +34,8 @@ const generateTxSignaturesWithTypedData = async function (vault, to, value, data
             data: data,
             operation: operation,
             gasLimit: gasLimit,
-            nonce: nonce
+            nonce: nonce,
+            metaHash: metaHash
         }
     }
     let signatureBytes = "0x"
@@ -58,7 +59,7 @@ const generateSignaturesWithEthSign = async function (dataHash, signers) {
 
 const generateTxSignaturesWithEthSign = async function (vault, to, value, data, operation, gasLimit, nonce, signers) {
     const dataHash = await vault.generateTxHash(
-        to, value, data, operation, gasLimit, nonce
+        to, value, data, operation, gasLimit, nonce, "0x"
     )
     return generateSignaturesWithEthSign(dataHash, signers)
 }
@@ -85,7 +86,7 @@ const execVaultConfigChange = async (subject, vault, impl, signers, threshold, f
 
 const execVaultTransaction = async (subject, vault, to, value, data, operation, minAvailableGas, nonce, signers, vaultConfig, executor, rejectOnFail) => {
     const dataHash = await vault.generateTxHash(
-        to, value, data, operation, minAvailableGas, nonce
+        to, value, data, operation, minAvailableGas, nonce, "0x"
     )
     const validationData = await buildValidationData(dataHash, signers, vaultConfig)
     { // Debug logs
@@ -97,7 +98,7 @@ const execVaultTransaction = async (subject, vault, to, value, data, operation, 
         console.log({hashes})
         console.log({signatures})
         const dataHash = await vault.generateTxHash(
-            to, value, data, operation, gasLimit, nonce
+            to, value, data, operation, gasLimit, nonce, "0x"
         )
         console.log({dataHash})
         for (i in signers) {
@@ -112,7 +113,7 @@ const execVaultTransaction = async (subject, vault, to, value, data, operation, 
         ))
         */
     }
-    logGasUsage(subject, await vault.execTransaction(to, value, data, operation, minAvailableGas, nonce, validationData, !!rejectOnFail, { from: executor }))
+    logGasUsage(subject, await vault.execTransaction(to, value, data, operation, minAvailableGas, nonce, "0x", validationData, !!rejectOnFail, { from: executor }))
 }
 
 Object.assign(exports, {

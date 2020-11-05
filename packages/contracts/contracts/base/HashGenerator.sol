@@ -13,11 +13,11 @@ contract HashGenerator {
 
     // Owners are packed encoded (to avoid issues with EIP712)
     bytes32 constant CONFIG_CHANGE_TYPEHASH = keccak256(
-        "ConfigChange(uint256 implementation,bytes signers,uint256 threshold,address signatureValidator,address requestGuard,address fallbackHandler,bytes hookBytes,uint256 nonce)"
+        "ConfigChange(uint256 implementation,bytes signers,uint256 threshold,address signatureValidator,address requestGuard,address fallbackHandler,bytes hookBytes,uint256 nonce,bytes32 metaHash)"
     );
 
     /// @dev Returns the chain id used by this contract.
-    function getChainId() public pure returns (uint256) {
+    function getChainId() internal pure returns (uint256) {
         uint256 id;
         // solium-disable-next-line security/no-inline-assembly
         assembly {
@@ -37,12 +37,12 @@ contract HashGenerator {
     }
 
     function generateTxHash(
-        address to, uint256 value, bytes memory data, uint8 operation, uint256 minAvailableGas, uint256 nonce
+        address to, uint256 value, bytes memory data, uint8 operation, uint256 minAvailableGas, uint256 nonce, bytes32 metaHash
     ) public view returns (bytes32) {
         uint256 chainId = getChainId();
         bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, this));
         bytes32 txHash = keccak256(
-            abi.encode(TRANSACTION_TYPEHASH, to, value, keccak256(data), operation, minAvailableGas, nonce)
+            abi.encode(TRANSACTION_TYPEHASH, to, value, keccak256(data), operation, minAvailableGas, nonce, metaHash)
         );
         return keccak256(abi.encodePacked(byte(0x19), byte(0x01), domainSeparator, txHash));
     }

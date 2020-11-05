@@ -108,7 +108,7 @@ contract('StatelessVault', function(accounts) {
 
         const config = {
             owners,
-            defaultSigners: [accounts[0], accounts[1]].sort(),
+            defaultSigners: [accounts[0], accounts[1]],
             threshold: 2
         }
         // Deposit 1 ETH + some spare money for execution 

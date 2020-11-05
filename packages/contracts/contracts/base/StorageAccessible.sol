@@ -72,13 +72,13 @@ contract StorageAccessible {
         revertWith(abi.encodePacked(response, success));
     }
 
-    function revertWith(bytes memory response) public pure {
+    function revertWith(bytes memory response) internal pure {
         assembly {
             revert(add(response, 0x20), mload(response))
         }
     }
 
-    function setLength(bytes memory buffer, uint256 length) public pure {
+    function setLength(bytes memory buffer, uint256 length) internal pure {
         assembly {
             mstore(buffer, length)
         }

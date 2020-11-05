@@ -14,7 +14,7 @@ contract ModuleManagerAddress {
 
     bytes32 constant MODULE_MANAGER_SALT = keccak256("stateless_vault_module_manager_v1");
     
-    function moduleManagerAddress() public view returns (address) {
+    function moduleManagerAddress() internal view returns (address) {
         return address(uint256(keccak256(abi.encodePacked(byte(0xff), this, MODULE_MANAGER_SALT, moduleManagerCodeHash))));
     }
 }

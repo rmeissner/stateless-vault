@@ -11,7 +11,6 @@ const writeImmutableMeta = async (address, immutables) => {
       fs.mkdirSync(metaDir);
   }
   const immutableMetaFile = path.join(metaDir, 'immutableMeta.json')
-  console.log(fs.existsSync(metaDir))
   const immutableMeta = fs.existsSync(immutableMetaFile) ? JSON.parse(fs.readFileSync(immutableMetaFile)) : {}
   immutableMeta[address] = immutables
   fs.writeFileSync(immutableMetaFile, JSON.stringify(immutableMeta))

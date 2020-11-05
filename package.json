@@ -11,5 +11,8 @@
     "packages": [
       "packages/*"
     ]
+  },
+  "resolutions": {
+    "bitcore-lib": "8.1.1"
   }
 }

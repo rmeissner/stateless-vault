@@ -176,9 +176,10 @@ contract StatelessVault is
         uint8 operation, 
         uint256 minAvailableGas,
         uint256 nonce,
+        bytes32 metaHash,
         bytes calldata validationBytes
     ) internal view returns (bytes32 configHash, bytes32 txHash) {
-        txHash = generateTxHash(to, value, data, operation, minAvailableGas, nonce);
+        txHash = generateTxHash(to, value, data, operation, minAvailableGas, nonce, metaHash);
         ValidationData memory validationData = decodeValidationData(validationBytes);
         bytes32 signersHash = checkValidationData(txHash, nonce, validationData);
         configHash = generateConfigHash(
@@ -224,6 +225,7 @@ contract StatelessVault is
         uint8 operation, 
         uint256 minAvailableGas,
         uint256 nonce,
+        bytes32 metaHash,
         // Validation information
         bytes calldata validationBytes,
         bool revertOnFailure
@@ -232,7 +234,7 @@ contract StatelessVault is
             bytes32 newConfigHash, 
             bytes32 txHash
         ) = internalValidateTx(
-            to, value, data, operation, minAvailableGas, nonce, validationBytes
+            to, value, data, operation, minAvailableGas, nonce, metaHash, validationBytes
         );
         
         success = internalExecTx(

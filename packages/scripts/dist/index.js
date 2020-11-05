@@ -250,7 +250,7 @@ var Vault = /** @class */ (function () {
     };
     Vault.prototype.signExecFromHash = function (ipfs, txHash) {
         return __awaiter(this, void 0, void 0, function () {
-            var hashData, tx, txData, to, value, data, operation, minAvailableGas, nonce, dataHash;
+            var hashData, tx, txData, to, value, data, operation, minAvailableGas, nonce, metaHash, dataHash;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, ipfs_1.pullWithKeccak(ipfs, txHash)];
@@ -268,13 +268,15 @@ var Vault = /** @class */ (function () {
                         operation = parseInt(tx.substring(4 * 64, 5 * 64), 16);
                         minAvailableGas = ethers_1.BigNumber.from("0x" + tx.substring(5 * 64, 6 * 64));
                         nonce = ethers_1.BigNumber.from("0x" + tx.substring(6 * 64, 7 * 64));
+                        metaHash = "0x" + tx.substring(7 * 64, 8 * 64);
                         console.log("To: " + to);
                         console.log("Value: " + value);
                         console.log("Data: " + data);
                         console.log("Operation: " + operation);
                         console.log("Minimum available gas: " + minAvailableGas);
                         console.log("Nonce: " + nonce);
-                        return [4 /*yield*/, this.vaultInstance.generateTxHash(to, value, data, operation, minAvailableGas, nonce)];
+                        console.log("Meta hash: " + metaHash);
+                        return [4 /*yield*/, this.vaultInstance.generateTxHash(to, value, data, operation, minAvailableGas, nonce, metaHash)];
                     case 4:
                         dataHash = _a.sent();
                         return [4 /*yield*/, this.signer.signMessage(ethers_1.utils.arrayify(dataHash))];
@@ -302,13 +304,17 @@ var Vault = /** @class */ (function () {
                             { type: "uint8", name: "operation" },
                             { type: "uint256", name: "minAvailableGas" },
                             { type: "uint256", name: "nonce" },
+                            { type: "bytes32", name: "metaHash" },
                         ]);
                         minAvailableGas = 0;
                         vaultTx = new VaultTx({
                             to: to,
                             value: value.toHexString(),
-                            data: data, operation: operation, minAvailableGas: minAvailableGas,
-                            nonce: nonce.toNumber()
+                            data: data,
+                            operation: operation,
+                            minAvailableGas: minAvailableGas,
+                            nonce: nonce.toNumber(),
+                            metaHash: "0x"
                         });
                         // data
                         console.log("Publish data");
@@ -460,9 +466,7 @@ var Vault = /** @class */ (function () {
                         signers = [singleSigner];
                         return [3 /*break*/, 5];
                     case 4: throw Error("Cannot execute transaction due to missing confirmation");
-                    case 5:
-                        console.log({ sigs: sigs });
-                        return [2 /*return*/, { signaturesString: "0x" + sigs.join(""), signers: signers }];
+                    case 5: return [2 /*return*/, { signaturesString: "0x" + sigs.join(""), signers: signers }];
                 }
             });
         });

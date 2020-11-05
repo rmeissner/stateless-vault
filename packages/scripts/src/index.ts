@@ -185,7 +185,7 @@ export class Vault {
 
     async signExec(to: string, value: BigNumber, data: string, operation: number, nonce: BigNumber): Promise<string> {
         const dataHash = await this.vaultInstance.generateTxHash(
-            to, value, data, operation, 0, nonce
+            to, value, data, operation, 0, nonce, "0x"
         )
         return await this.signer.signMessage(utils.arrayify(dataHash))
     }
@@ -200,14 +200,16 @@ export class Vault {
         const operation = parseInt(tx.substring(4*64, 5*64), 16)
         const minAvailableGas = BigNumber.from("0x" + tx.substring(5*64, 6*64))
         const nonce = BigNumber.from("0x" + tx.substring(6*64, 7*64))
+        const metaHash = "0x" + tx.substring(7*64, 8*64)
         console.log(`To: ${to}`)
         console.log(`Value: ${value}`)
         console.log(`Data: ${data}`)
         console.log(`Operation: ${operation}`)
         console.log(`Minimum available gas: ${minAvailableGas}`)
         console.log(`Nonce: ${nonce}`)
+        console.log(`Meta hash: ${metaHash}`)
         const dataHash = await this.vaultInstance.generateTxHash(
-            to, value, data, operation, minAvailableGas, nonce
+            to, value, data, operation, minAvailableGas, nonce, metaHash
         )
         return await this.signer.signMessage(utils.arrayify(dataHash))
     }
@@ -226,12 +228,18 @@ export class Vault {
             { type: "uint8", name: "operation" },
             { type: "uint256", name: "minAvailableGas" },
             { type: "uint256", name: "nonce" },
+            { type: "bytes32", name: "metaHash" },
         ]);
 
         const minAvailableGas = 0
         const vaultTx = new VaultTx({
             to, 
-            value: value.toHexString(), data, operation, minAvailableGas, nonce: nonce.toNumber()
+            value: value.toHexString(), 
+            data, 
+            operation, 
+            minAvailableGas, 
+            nonce: nonce.toNumber(),
+            metaHash: "0x"
         });
 
         // data
@@ -291,7 +299,6 @@ export class Vault {
         } else {
             throw Error("Cannot execute transaction due to missing confirmation")
         }
-        console.log({ sigs })
         return { signaturesString: "0x" + sigs.join(""), signers }
     }
 
@@ -342,12 +349,12 @@ export class Vault {
         if (!config.nonce.eq(nonce)) throw Error("Invalid nonce")
         const { signaturesString, signers } = await this.formatSignature(config, () => {
             return this.vaultInstance.generateTxHash(
-                to, value, data, operation, 0, nonce
+                to, value, data, operation, 0, nonce, "0x"
             )
         }, signatures)
         const validationData = await buildValidationData(config, signaturesString, signers)
-        //console.log(await this.vaultInstance.callStatic.execTransaction(to, value, data, operation, 0, config.nonce, validationData, true))
-        await this.vaultInstance.execTransaction(to, value, data, operation, 0, config.nonce, validationData, true)
+        //console.log(await this.vaultInstance.callStatic.execTransaction(to, value, data, operation, 0, config.nonce, "0x", validationData, true))
+        await this.vaultInstance.execTransaction(to, value, data, operation, 0, config.nonce, "0x", validationData, true)
     }
 }
 
