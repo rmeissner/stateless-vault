@@ -208,13 +208,31 @@ export class Vault {
         console.log(`Minimum available gas: ${minAvailableGas}`)
         console.log(`Nonce: ${nonce}`)
         console.log(`Meta hash: ${metaHash}`)
+        if (metaHash !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+            try {
+                const metaData = await pullWithKeccak(ipfs, metaHash, "utf8")
+                console.log(`Meta data: ${metaData}`)
+            } catch (e) {
+                console.error(e)
+            }
+        }
         const dataHash = await this.vaultInstance.generateTxHash(
             to, value, data, operation, minAvailableGas, nonce, metaHash
         )
         return await this.signer.signMessage(utils.arrayify(dataHash))
     }
 
-    async publishExec(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber): Promise<string> {
+    async publishExec(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber, meta?: any): Promise<string> {
+        const metaData = meta ? JSON.stringify(meta) : null
+        const metaHash = metaData ? utils.solidityKeccak256(["string"], [metaData]) : "0x"
+        
+        if (metaData) {
+            console.log("Publish meta data")
+            for await (const res of ipfs.add(metaData, { hashAlg: "keccak-256" })) {
+                console.log(`metadata: ${res.path}`);
+            }
+        }
+
         const data = utils.arrayify(dataString)
         const vaultDomain = new EIP712Domain({
             chainId: 4,
@@ -239,7 +257,7 @@ export class Vault {
             operation, 
             minAvailableGas, 
             nonce: nonce.toNumber(),
-            metaHash: "0x"
+            metaHash
         });
 
         // data
@@ -319,6 +337,7 @@ export class Vault {
         }, signatures)
         const validationData = await buildValidationData(config, signaturesString, signers)
 
+        /*
         console.log(await this.vaultInstance.callStatic.updateConfig(
             config.implementation,
             newSigners,
@@ -330,6 +349,7 @@ export class Vault {
             nonce,
             validationData
         ))
+        */
 
         await this.vaultInstance.updateConfig(
             config.implementation,
@@ -382,7 +402,10 @@ const test = async () => {
     const config = await vault.loadConfig()
     console.log({config})
     console.log(await vault.loadTransactions())
-    const txHash = await vault.publishExec(ipfs, vault.address, BigNumber.from(42), "0xbaddad", 1, config.nonce)
+    const txHash = await vault.publishExec(ipfs, vault.address, BigNumber.from(42), "0xbaddad", 1, config.nonce, {
+        app: "Transaction Builder",
+        purpose: "Employee payment"
+    })
     console.log({txHash})
     await vault.signExecFromHash(ipfs, txHash)
     /*

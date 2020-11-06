@@ -3,7 +3,7 @@ import { utils } from 'ethers'
 
 const addHexPrefix = (input: string) => input.toLowerCase().startsWith("0x") ? input : "0x" + input
 
-export const pullWithKeccak = async (ipfs: any, hashPart: string): Promise<string> => {
+export const pullWithKeccak = async (ipfs: any, hashPart: string, encoding?: string): Promise<string> => {
     const multhash = Buffer.concat([utils.arrayify("0x1b20"), utils.arrayify(addHexPrefix(hashPart))]);
     const cid = new CID(1, "raw", multhash, "base32")
     let out = ""
@@ -13,7 +13,7 @@ export const pullWithKeccak = async (ipfs: any, hashPart: string): Promise<strin
         for await (const chunk of file.content) {
             content.push(chunk)
         }
-        out += content.map(c => c.toString('hex')).join()
+        out += content.map(c => c.toString(encoding || 'hex')).join()
     }
     return out
 }
