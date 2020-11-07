@@ -67,8 +67,8 @@ contract GnosisSafeProxyFactory {
     /// @param _mastercopy Address of master copy.
     /// @param initializer Payload for message call sent to new proxy contract.
     /// @param saltNonce Nonce that will be used to generate the salt to calculate the address of the new proxy contract.
-    function deploy(address _mastercopy, bytes memory initializer, uint256 saltNonce)
-        public
+    function deployProxyWithNonce(address _mastercopy, bytes memory initializer, uint256 saltNonce)
+        internal
         returns (GnosisSafeProxy proxy)
     {
         // If the initializer changes the proxy address should change too. Hashing the initializer data is cheaper than just concatinating it
@@ -79,12 +79,37 @@ contract GnosisSafeProxyFactory {
             proxy := create2(0x0, add(0x20, deploymentData), mload(deploymentData), salt)
         }
         require(address(proxy) != address(0), "Create2 call failed");
-        if (initializer.length > 0)
-            // solium-disable-next-line security/no-inline-assembly
-            assembly {
-                if eq(call(gas(), proxy, 0, add(initializer, 0x20), mload(initializer), 0, 0), 0) { revert(0,0) }
-            }
+    }
+
+    /// @dev Allows to create new proxy contact using CREATE2 but it doesn't run the initializer.
+    ///      This method is only meant as an utility to be called from other methods
+    /// @param _mastercopy Address of master copy.
+    /// @param initializer Payload for message call sent to new proxy contract.
+    /// @param saltNonce Nonce that will be used to generate the salt to calculate the address of the new proxy contract.
+    function createProxyWithNonce(address _mastercopy, bytes memory initializer, uint256 saltNonce)
+        public
+        returns (GnosisSafeProxy proxy)
+    {
+        proxy = deployProxyWithNonce(_mastercopy, initializer, saltNonce);
+        if (initializer.length > 0) {
+            (bool success, bytes memory resp) = address(proxy).call(initializer);
+            require(success, string(abi.encodePacked("Could not execute intitializer: ", resp)));
+        }
         emit ProxyCreation(proxy);
+    }
+
+    /// @dev Allows to get the address for a new proxy contact created via `createProxyWithNonce`
+    ///      This method is only meant for address calculation purpose when you use an initializer that would revert,
+    ///      therefore the response is returned with a revert. When calling this method set `from` to the address of the proxy factory.
+    /// @param _mastercopy Address of master copy.
+    /// @param initializer Payload for message call sent to new proxy contract.
+    /// @param saltNonce Nonce that will be used to generate the salt to calculate the address of the new proxy contract.
+    function calculateCreateProxyWithNonceAddress(address _mastercopy, bytes calldata initializer, uint256 saltNonce)
+        external
+        returns (GnosisSafeProxy proxy)
+    {
+        proxy = deployProxyWithNonce(_mastercopy, initializer, saltNonce);
+        revert(string(abi.encodePacked(proxy)));
     }
 
 }

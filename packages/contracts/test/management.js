@@ -33,7 +33,7 @@ contract('StatelessVault', function(accounts) {
             config.owners, config.threshold, Address0, Address0, Address0
         ).encodeABI()
         vault = await getParamFromTxEvent(
-            await proxyFactory.deploy(vaultImplementation.address, vaultData, 0),
+            await proxyFactory.createProxyWithNonce(vaultImplementation.address, vaultData, 0),
             'ProxyCreation', 'proxy', proxyFactory.address, Vault, 'create Proxy',
         )
     })

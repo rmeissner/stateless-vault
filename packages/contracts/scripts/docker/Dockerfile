@@ -4,7 +4,7 @@ ENV USER=root
 WORKDIR "/"
 
 RUN echo "{}" > networks.json
-COPY ./package.json ./yarn.lock ./truffle-config.js ./
+COPY ./package.json ./truffle-config.js ./
 
 RUN yarn
 

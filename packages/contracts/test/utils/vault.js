@@ -118,6 +118,7 @@ const execVaultTransaction = async (subject, vault, to, value, data, operation, 
 
 Object.assign(exports, {
     buildValidationData,
+    generateSignaturesWithEthSign,
     generateTxSignaturesWithTypedData,
     generateTxSignaturesWithEthSign,
     execVaultTransaction,

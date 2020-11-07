@@ -8,7 +8,7 @@ contract HashGenerator {
     );
 
     bytes32 constant TRANSACTION_TYPEHASH = keccak256(
-        "Transaction(address to,uint256 value,bytes data,uint8 operation,uint256 minAvailableGas,uint256 nonce)"
+        "Transaction(address to,uint256 value,bytes data,uint8 operation,uint256 minAvailableGas,uint256 nonce,bytes32 metaHash)"
     );
 
     // Owners are packed encoded (to avoid issues with EIP712)

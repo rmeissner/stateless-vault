@@ -9,11 +9,21 @@ const fs = require('fs')
 
 const metaDir = path.join("build", "meta")
 
+function getNetworkName() {
+    let returnNext = false
+    for (i in process.argv) {
+        const val = process.argv[i]
+        if (returnNext) return val
+        else if (val === '--network') returnNext = true
+        else if (val.startsWith('--network=')) return val.slice(10)
+    }
+    return 'development'
+}
+
 function reformatMetadata(
     metadata,
     sources
 ) {
-
     const input = {};
     let fileName = '';
     let contractName = '';
@@ -60,7 +70,7 @@ function reformatMetadata(
     }
 }
 
-process = async () => {
+runScript = async () => {
     const networkId = await web3.eth.net.getId()
     const network = require(path.join("..", "networks.json"));
     const pkg = require(path.join("..", "package.json"))
@@ -85,14 +95,18 @@ process = async () => {
         const contract = output.contracts[fileName][contractName];
         const immutableMeta = require(path.join("..", metaDir, `immutableMeta.json`));
         let localBytecode = `0x${contract.evm.deployedBytecode.object}`
-        const refs = Object.values(contract.evm.deployedBytecode.immutableReferences).map((v) => v[0])
+        const refs = Object.values(contract.evm.deployedBytecode.immutableReferences)
         refs.sort((a, b) => {
             return (a.start - b.start)
         })
+        const networkName = getNetworkName()
         for (i in refs) {
-            const start = refs[i].start * 2 + 2 // Hex prefix
-            const length = refs[i].length * 2
-            localBytecode = localBytecode.slice(0, start) + immutableMeta[address][i] + localBytecode.slice(start + length)
+            console.log(ref)
+            for (j in ref) {
+                const start = ref[j].start * 2 + 2 // Hex prefix
+                const length = ref[j].length * 2
+                localBytecode = localBytecode.slice(0, start) + immutableMeta[networkName][address][i] + localBytecode.slice(start + length)
+            }
         }
         console.log(`Address: ${address}`)
         const onchainBytecode = await web3.eth.getCode(address);
@@ -117,7 +131,7 @@ process = async () => {
 }
 
 module.exports = function (callback) {
-    process()
+    runScript()
         .then(() => { callback() })
         .catch((err) => { callback(err) })
 }

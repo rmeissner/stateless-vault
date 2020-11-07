@@ -48,6 +48,7 @@ contract SignatureCheck {
             // Use ecrecover with the messageHash for EOA signatures
             signer = ecrecover(dataHash, v, r, s);
         }
+        require(signer != address(0), "Could not recover signer");
         return signer;
     }
     

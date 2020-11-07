@@ -136,8 +136,41 @@
         }
       },
       "links": {},
-      "address": "0x1Cd9D665EA0974EC468917cb0AfDA3a7BE86a2d9",
-      "transactionHash": "0xd8e55d59931c804678604e2f06fce50b682611d3d52fd847c9d0f72be3e12481"
+      "address": "0x9BB5b5BC479c12cccbC6Abb01498B17C79bbD71a"
+    }
+  },
+  "ProxyFactoryWithInitializor": {
+    "4": {
+      "events": {},
+      "links": {},
+      "address": "0x01bB5C213d49E08C8A27deD1836Fa42e93418E21"
+    }
+  },
+  "Initializor": {
+    "4": {
+      "events": {
+        "0xa419615bc8fda4c87663805ee2a3597a6d71c1d476911d9892f340d965bc7bf1": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            },
+            {
+              "indexed": false,
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            }
+          ],
+          "name": "ReceivedEther",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x31a8c7907b738a3D2584Fe0d7F568ED58771F7Dc"
     }
   }
 }

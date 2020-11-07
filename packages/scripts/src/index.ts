@@ -12,6 +12,7 @@ const mnemonic = process.env.MNEMONIC!!
 const rpcUrl = process.env.RPC_URL!!
 const browserUrlTx = process.env.BROWSER_URL_TX!!
 const browserUrlAddress = process.env.BROWSER_URL_ADDRESS!!
+const proxyFactoryAddress = process.env.PROXY_FACTORY_ADDRESS!!
 
 export interface FactoryConfig {
     factoryAddress: string,
@@ -219,6 +220,7 @@ export class Vault {
         const dataHash = await this.vaultInstance.generateTxHash(
             to, value, data, operation, minAvailableGas, nonce, metaHash
         )
+        if (txHash != dataHash) throw Error("Invalid hash generated")
         return await this.signer.signMessage(utils.arrayify(dataHash))
     }
 
@@ -277,6 +279,10 @@ export class Vault {
         for await (const res of ipfs.add(vaultTx.encode(), { hashAlg: "keccak-256" })) {
             console.log(`metadata: ${res.path}`);
         }
+        const dataHash = await this.vaultInstance.generateTxHash(
+            to, value, data, operation, minAvailableGas, nonce, metaHash
+        )
+        if (txHash != dataHash) throw Error("Invalid hash generated")
         return txHash
     }
 
@@ -389,7 +395,7 @@ const signer = Wallet.fromMnemonic(mnemonic).connect(provider)
 const signer2 = Wallet.fromMnemonic(mnemonic, "m/44'/60'/0'/0/1").connect(provider)
 const test = async () => {
     const factory = new VaultFactory({
-        factoryAddress: "0x76E2cFc1F5Fa8F6a5b3fC4c8F4788F0116861F9B",
+        factoryAddress: proxyFactoryAddress,
         vaultImplementationAddress: StatelessVault.networks[4].address,
         signer
     })
@@ -400,20 +406,28 @@ const test = async () => {
     console.log(`Vault @ ${browserUrlAddress.replace("{}", vault.address)}`)
     const vault2 = new Vault(signer2, vault.address)
     const config = await vault.loadConfig()
+    console.log("############# Configuration ############")
     console.log({config})
+    console.log()
+    console.log("############# Transactions #############")
     console.log(await vault.loadTransactions())
-    const txHash = await vault.publishExec(ipfs, vault.address, BigNumber.from(42), "0xbaddad", 1, config.nonce, {
+    console.log()
+    console.log()
+    console.log("############ New Transaction ###########")
+    const txHash = await vault.publishExec(ipfs, vault.address, BigNumber.from(42), "0xbaddad", 0, config.nonce, {
         app: "Transaction Builder",
         purpose: "Employee payment"
     })
     console.log({txHash})
-    await vault.signExecFromHash(ipfs, txHash)
+    console.log()
+    console.log()
+    //const txHash = '0x8b916c0950933cdc1ef6c8877318efe755ddf93f5730a11698672362c614c001'
+    console.log("############ Sign Transaction ##########")
+    console.log("Signature: " + await vault.signExecFromHash(ipfs, txHash));
     /*
     const sig1 = await vault.signUpdate([await signer.getAddress(), await signer2.getAddress()], BigNumber.from(2), config.nonce)
     const sig2 = await vault2.signUpdate([await signer.getAddress(), await signer2.getAddress()], BigNumber.from(2), config.nonce)
     await vault.update([await signer.getAddress(), await signer2.getAddress()], BigNumber.from(2), config.nonce, [sig1, sig2])
-    */
-    /*
     const sig1 = await vault.signExec(vault.address, BigNumber.from(0), "0x", 0, config.nonce)
     const sig2 = await vault2.signExec(vault.address, BigNumber.from(0), "0x", 0, config.nonce)
     await vault.exec(vault.address, BigNumber.from(0), "0x", 0, config.nonce, [sig1, sig2])

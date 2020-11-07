@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A 'stateless' multisignature smart wallet for Ethereum",
   "scripts": {
-    "test": "run(){ run-with-testrpc -l 20000000 --noVMErrorsOnRPCResponse \"truffle test $@\"; }; run",
+    "test": "run(){ run-with-testrpc -l 20000000 \"truffle test $@\"; }; run",
     "compile": "run(){ truffle compile $@; }; run",
     "coverage": "run(){ truffle run coverage $@; }; run",
     "deploy": "run(){ truffle deploy --skip-dry-run --network=$@; }; run",
@@ -23,7 +23,9 @@
       73799
     ],
     "contracts": [
-      "StatelessVault"
+      "StatelessVault",
+      "ProxyFactoryWithInitializor",
+      "Initializor"
     ]
   },
   "author": "msc.meissner@gmail.com",
