@@ -96,12 +96,9 @@ runScript = async () => {
         const immutableMeta = require(path.join("..", metaDir, `immutableMeta.json`));
         let localBytecode = `0x${contract.evm.deployedBytecode.object}`
         const refs = Object.values(contract.evm.deployedBytecode.immutableReferences)
-        refs.sort((a, b) => {
-            return (a.start - b.start)
-        })
         const networkName = getNetworkName()
         for (i in refs) {
-            console.log(ref)
+            const ref = refs[i]
             for (j in ref) {
                 const start = ref[j].start * 2 + 2 // Hex prefix
                 const length = ref[j].length * 2
