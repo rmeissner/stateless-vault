@@ -2,16 +2,26 @@
 pragma solidity >=0.7.0 <0.8.0;
 
 interface RequestGuard {
-    function check(
+    function checkTx(
         address to, 
         uint256 value, 
         bytes calldata data, 
         uint8 operation, 
         uint256 minAvailableGas,
         uint256 nonce,
-        uint256 signerCount, 
-        uint256 threshold,
-        bytes calldata signatures
+        bytes calldata validationBytes
+    ) external view returns (bool);
+
+    function checkConfig(
+        address updatedImplementation,
+        address[] calldata updatedSigners,
+        uint256 updatedThreshold,
+        address updatedSignatureValidator,
+        address updatedRequestGuard,
+        address updatedFallbackHandler,
+        bytes calldata hookBytes,
+        uint256 nonce,
+        bytes calldata validationBytes
     ) external view returns (bool);
 }
 

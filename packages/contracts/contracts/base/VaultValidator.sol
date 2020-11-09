@@ -24,7 +24,7 @@ contract VaultValidator is VaultStorage, SignatureCheck, HashGenerator {
         bytes32 dataHash,
         uint256 nonce,
         ValidationData memory validationData
-    ) internal view returns (bytes32) {
+    ) internal view returns (bytes32,uint256) {
         uint256 recoveredSigner = 0;
         bytes32[] memory proofData = new bytes32[](validationData.signerCount);
         uint256 prevSignerIndex = 0;
@@ -73,7 +73,16 @@ contract VaultValidator is VaultStorage, SignatureCheck, HashGenerator {
             ) == configHash, 
             "Config hash is not the same"
         );
-        return proofData[0];
+        return (proofData[0], recoveredSigner);
+    }
+
+    function checkValidationData(
+        bytes32 dataHash,
+        uint256 vaultNonce,
+        bytes calldata validationBytes
+    ) external view returns (bytes32 ownersHash, uint256 recoveredOwners) {
+        ValidationData memory validationData = decodeValidationData(validationBytes);
+        (ownersHash, recoveredOwners) = checkValidationData(dataHash, vaultNonce, validationData);
     }
     
     function calculateSignersHash(address[] memory updatedSigners) internal pure returns(bytes32) {

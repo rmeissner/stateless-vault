@@ -141,6 +141,13 @@ contract StatelessVault is
                 updatedImplementation, updatedSigners, updatedThreshold, updatedSignatureValidator,
                 updatedRequestGuard, updatedFallbackHandler, hookBytes, nonce, validationData
             );
+            if (validationData.requestGuard != address(0)) {
+                require(RequestGuard(validationData.requestGuard).checkConfig(
+                    updatedImplementation, updatedSigners, updatedThreshold, updatedSignatureValidator,
+                    updatedRequestGuard, updatedFallbackHandler, hookBytes, nonce, 
+                    validationBytes
+                ));
+            }
         }
         
         internalExecuteConfigChange(
@@ -181,7 +188,7 @@ contract StatelessVault is
     ) internal view returns (bytes32 configHash, bytes32 txHash) {
         txHash = generateTxHash(to, value, data, operation, minAvailableGas, nonce, metaHash);
         ValidationData memory validationData = decodeValidationData(validationBytes);
-        bytes32 signersHash = checkValidationData(txHash, nonce, validationData);
+        (bytes32 signersHash,) = checkValidationData(txHash, nonce, validationData);
         configHash = generateConfigHash(
             signersHash, 
             validationData.threshold, 
@@ -190,9 +197,9 @@ contract StatelessVault is
             nonce.add(1)
         );
         if (validationData.requestGuard != address(0)) {
-            require(RequestGuard(validationData.requestGuard).check(
+            require(RequestGuard(validationData.requestGuard).checkTx(
                 to, value, data, operation, minAvailableGas, nonce, 
-                validationData.signerCount, validationData.threshold, validationData.signatures
+                validationBytes
             ));
         }
     }
