@@ -219,8 +219,7 @@ export class Vault {
         for (const e of events) {
             if (e.topics[0] == configTopic) {
                 const config = this.vaultInstance.interface.decodeEventLog(
-                    "Configuration",
-                    e.data
+                    "Configuration", e.data, e.topics
                 )
                 if (config.currentNonce.eq(0)) {
                     txs.push(new VaultConfigUpdate(e.transactionHash))
@@ -229,14 +228,12 @@ export class Vault {
                 }
             } else if (e.topics[0] == failedTopic) {
                 const exec = this.vaultInstance.interface.decodeEventLog(
-                    "ExecutionFailure",
-                    e.data
+                    "ExecutionFailure", e.data, e.topics
                 )
                 txs.push(new VaultExecutedTransaction(exec.txHash, e.transactionHash, exec.usedNonce, false))
             } else if (e.topics[0] == successTopic) {
                 const exec = this.vaultInstance.interface.decodeEventLog(
-                    "ExecutionSuccess",
-                    e.data
+                    "ExecutionSuccess", e.data, e.topics
                 )
                 txs.push(new VaultExecutedTransaction(exec.txHash, e.transactionHash, exec.usedNonce, true))
             }
@@ -268,8 +265,7 @@ export class Vault {
         for (const e of events) {
             if (e.topics[0] == configTopic) {
                 const config = this.vaultInstance.interface.decodeEventLog(
-                    "Configuration",
-                    e.data
+                    "Configuration", e.data, e.topics
                 )
                 if (config.currentNonce >= currentConfig.nonce) {
                     currentConfig.signers = config.signers
@@ -282,17 +278,16 @@ export class Vault {
                 }
             } else if (e.topics[0] == failedTopic) {
                 const exec = this.vaultInstance.interface.decodeEventLog(
-                    "ExecutionFailure",
-                    e.data
+                    "ExecutionFailure", e.data, e.topics
                 )
                 if (currentConfig.nonce <= exec.usedNonce) {
                     currentConfig.nonce = exec.usedNonce.add(1)
                 }
             } else if (e.topics[0] == successTopic) {
                 const exec = this.vaultInstance.interface.decodeEventLog(
-                    "ExecutionSuccess",
-                    e.data
+                    "ExecutionSuccess", e.data, e.topics
                 )
+                console.log(exec)
                 if (currentConfig.nonce <= exec.usedNonce) {
                     currentConfig.nonce = exec.usedNonce.add(1)
                 }
@@ -306,12 +301,12 @@ export class Vault {
 
     async signTx(transaction: VaultTransaction): Promise<string> {
         const dataHash = await this.vaultInstance.generateTxHash(
-            transaction.to, 
-            transaction.value, 
-            transaction.data, 
-            transaction.operation, 
-            transaction.minAvailableGas, 
-            transaction.nonce, 
+            transaction.to,
+            transaction.value,
+            transaction.data,
+            transaction.operation,
+            transaction.minAvailableGas,
+            transaction.nonce,
             transaction.metaHash
         )
         return prepareEthSignSignatureForSafe(await this.signer.signMessage(utils.arrayify(dataHash)))
@@ -339,7 +334,7 @@ export class Vault {
         return {
             to,
             value: value.toHexString(),
-            data, 
+            data,
             operation,
             minAvailableGas: minAvailableGas.toHexString(),
             nonce: nonce.toHexString(),
