@@ -119,7 +119,7 @@ contract('StatelessVault', function(accounts) {
         assert.equal(await web3.eth.getBalance(vault.address), 0)
     })
 
-    it.only('create with initializor and deposit and withdraw 1 ETH', async () => {
+    it('create with initializor and deposit and withdraw 1 ETH', async () => {
         const multiSend = await MultiSend.new()
         const factory = await Factory.deployed()
         const initializor = await Initializor.deployed()

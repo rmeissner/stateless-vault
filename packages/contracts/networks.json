@@ -55,13 +55,13 @@
           "anonymous": false,
           "inputs": [
             {
-              "indexed": false,
+              "indexed": true,
               "internalType": "uint256",
               "name": "usedNonce",
               "type": "uint256"
             },
             {
-              "indexed": false,
+              "indexed": true,
               "internalType": "bytes32",
               "name": "txHash",
               "type": "bytes32"
@@ -100,13 +100,13 @@
           "anonymous": false,
           "inputs": [
             {
-              "indexed": false,
+              "indexed": true,
               "internalType": "uint256",
               "name": "usedNonce",
               "type": "uint256"
             },
             {
-              "indexed": false,
+              "indexed": true,
               "internalType": "bytes32",
               "name": "txHash",
               "type": "bytes32"
@@ -133,17 +133,38 @@
           ],
           "name": "ReceivedEther",
           "type": "event"
+        },
+        "0xefb8cdb417ac5d8f0c2eeb4978dcc9136fd644199fffc4424568aa7eb7e9f326": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "internalType": "uint256",
+              "name": "usedNonce",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "internalType": "bytes32",
+              "name": "txHash",
+              "type": "bytes32"
+            }
+          ],
+          "name": "ConfigurationUpdate",
+          "type": "event"
         }
       },
       "links": {},
-      "address": "0x9BB5b5BC479c12cccbC6Abb01498B17C79bbD71a"
+      "address": "0x7216c898f644850c574354C11620baf621a6d0c7",
+      "transactionHash": "0xfa643b09de598f73b55eb5764c028bfe52ff99b33a6337656a0c72bfe9e2cae6"
     }
   },
   "ProxyFactoryWithInitializor": {
     "4": {
       "events": {},
       "links": {},
-      "address": "0x01bB5C213d49E08C8A27deD1836Fa42e93418E21"
+      "address": "0x818EB7Cf56A07c2c78b7B272025b1e27Eb363Fe1",
+      "transactionHash": "0xcbfaa03639a6f074644430044cd4368bbc12fd5eee66cc2ae8e299e721ca1729"
     }
   },
   "Initializor": {
@@ -170,7 +191,8 @@
         }
       },
       "links": {},
-      "address": "0x31a8c7907b738a3D2584Fe0d7F568ED58771F7Dc"
+      "address": "0xa27eA3679daE0cD5CE8689bdED3858756490a9b8",
+      "transactionHash": "0xcb07eabedc00088166aad32ba63afb64c97b99e6ba9da5c766d0bfeff4b9b5e5"
     }
   }
 }

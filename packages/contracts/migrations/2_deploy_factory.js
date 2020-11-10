@@ -28,7 +28,7 @@ const deployFactory = async() => {
 
 module.exports = function (deployer, network) {
   deployer.then(async () => {
-    const factoryAddress = gnosisProxyFactoryAddress || await deployFactory();
+    const factoryAddress = (network !== "development" && gnosisProxyFactoryAddress) || await deployFactory();
     const { contractAddress } = await deployTruffleContract(web3, Initializor);
     await deployTruffleContract(web3, ProxyFactoryWithInitializor, factoryAddress, contractAddress);
     await writeImmutableMeta(ProxyFactoryWithInitializor.address, network, [

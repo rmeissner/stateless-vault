@@ -26,11 +26,14 @@ contract StatelessVault is
         uint256 currentNonce
     );
 
+    event ConfigurationUpdate(
+        uint indexed usedNonce, bytes32 indexed txHash
+    );
     event ExecutionFailure(
-        uint usedNonce, bytes32 txHash
+        uint indexed usedNonce, bytes32 indexed txHash
     );
     event ExecutionSuccess(
-        uint usedNonce, bytes32 txHash
+        uint indexed usedNonce, bytes32 indexed txHash
     );
 
     event ExecutionFromModuleSuccess(
@@ -78,9 +81,10 @@ contract StatelessVault is
         address updatedFallbackHandler,
         bytes memory hookBytes,
         uint256 nonce,
+        bytes32 metaHash,
         // Validation information
         ValidationData memory validationData
-    ) internal view {
+    ) internal {
         bytes32 dataHash = generateConfigChangeHash(
             updatedImplementation, 
             abi.encodePacked(updatedSigners), 
@@ -89,8 +93,10 @@ contract StatelessVault is
             updatedRequestGuard,
             updatedFallbackHandler,
             hookBytes,
-            nonce
+            nonce,
+            metaHash
         );
+        emit ConfigurationUpdate(nonce, dataHash);
         checkValidationData(dataHash, nonce, validationData);
     }
 
@@ -131,6 +137,7 @@ contract StatelessVault is
         address updatedFallbackHandler,
         bytes calldata hookBytes,
         uint256 nonce,
+        bytes32 metaHash,
         // Validation information
         bytes calldata validationBytes
     ) external {
@@ -139,7 +146,7 @@ contract StatelessVault is
             ValidationData memory validationData = decodeValidationData(validationBytes);
             internalValidateConfigChange(
                 updatedImplementation, updatedSigners, updatedThreshold, updatedSignatureValidator,
-                updatedRequestGuard, updatedFallbackHandler, hookBytes, nonce, validationData
+                updatedRequestGuard, updatedFallbackHandler, hookBytes, nonce, metaHash, validationData
             );
             if (validationData.requestGuard != address(0)) {
                 require(RequestGuard(validationData.requestGuard).checkConfig(

@@ -76,10 +76,10 @@ const buildValidationData = async (dataHash, signers, vaultConfig) => {
 
 const execVaultConfigChange = async (subject, vault, impl, signers, threshold, fallbackHandler, nonce, vaultConfig, executor) => {
     const dataHash = await vault.generateConfigChangeHash(
-        impl, solidityPack(["address[]"], [signers]), threshold, Address0, Address0, fallbackHandler, "0x", nonce
+        impl, solidityPack(["address[]"], [signers]), threshold, Address0, Address0, fallbackHandler, "0x", nonce, "0x"
     )
     const validationData = await buildValidationData(dataHash, vaultConfig.defaultSigners, vaultConfig)
-    logGasUsage(subject, await vault.updateConfig(impl, signers, threshold, Address0, Address0, fallbackHandler, "0x", nonce, validationData, { from: executor }))
+    logGasUsage(subject, await vault.updateConfig(impl, signers, threshold, Address0, Address0, fallbackHandler, "0x", nonce, "0x", validationData, { from: executor }))
     vaultConfig.threshold = threshold
     vaultConfig.owners = signers
 }

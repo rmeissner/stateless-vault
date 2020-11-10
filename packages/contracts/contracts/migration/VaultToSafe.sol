@@ -119,7 +119,7 @@ contract VaultV1ToSafeV120MigrationCoordinator {
         bytes memory validationData
     ) public {
         vault.updateConfig(
-            address(migration), updatedSigners, updatedThreshold, address(0), address(0), updatedFallbackHandler, "", nonce, validationData
+            address(migration), updatedSigners, updatedThreshold, address(0), address(0), updatedFallbackHandler, "", nonce, bytes32(0), validationData
         );
         VaultV1ToSafeV120Migration(address(vault)).migrate(updatedSigners, updatedThreshold, updatedFallbackHandler, nonce + 1);
     }

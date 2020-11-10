@@ -127,7 +127,7 @@ contract('StatelessVault', function(accounts) {
         const configNonce = 2
         const migrationAddr = await migrationCoordinator.migration()
         const dataHash = await vault.generateConfigChangeHash(
-            migrationAddr, solidityPack(["address[]"], [owners]), threshold, Address0, Address0, fallbackHandlerAddress, "0x", configNonce
+            migrationAddr, solidityPack(["address[]"], [owners]), threshold, Address0, Address0, fallbackHandlerAddress, "0x", configNonce, "0x"
         )
         const validationData = await buildValidationData(dataHash, config.defaultSigners, config)
         utils.logGasUsage(
