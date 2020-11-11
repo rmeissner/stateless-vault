@@ -1,20 +1,67 @@
-import { Contract, ethers, Signer, BigNumber } from 'ethers';
-export interface FactoryConfig {
+import { Contract, utils, Signer, BigNumber, providers } from 'ethers';
+export interface LocalFactoryConfig {
     factoryAddress: string;
     vaultImplementationAddress: string;
     signer: Signer;
+}
+export interface RelayedFactoryConfig {
+    factoryAddress: string;
+    relayFactoryAddress: string;
+    vaultImplementationAddress: string;
+    provider: providers.Provider;
 }
 export interface VaultSetup {
     signers: string[];
     threshold: BigNumber;
 }
-export declare class VaultFactory {
-    readonly vaultInterface: ethers.utils.Interface;
-    readonly config: FactoryConfig;
+export declare abstract class BaseFactory {
+    readonly vaultInterface: utils.Interface;
+    creationData(vaultSetup: VaultSetup): Promise<string>;
+}
+export declare class LocalVaultFactory extends BaseFactory {
+    readonly config: LocalFactoryConfig;
     readonly factoryInstance: Contract;
-    constructor(config: FactoryConfig);
+    constructor(config: LocalFactoryConfig);
     calculateAddress(initializer: string, saltNonce: string): Promise<string>;
     create(vaultSetup: VaultSetup, saltString?: string): Promise<Vault>;
+}
+export interface SetupTransaction {
+    to: string;
+    value: string;
+    data: string;
+    operation: number;
+}
+export interface RelayDeployment {
+    implementation: string;
+    validators: string[];
+    signatures: string;
+    transaction: SetupTransaction;
+    nonce: string;
+}
+export interface VaultTransaction {
+    to: string;
+    value: string;
+    data: string;
+    operation: number;
+    minAvailableGas: string;
+    nonce: string;
+    metaHash: string;
+    meta?: string;
+}
+export interface VaultExecInfo {
+    wallet: string;
+    validationData: string;
+    transaction: VaultTransaction;
+}
+export declare class RelayedVaultFactory extends BaseFactory {
+    readonly initializorInterface: utils.Interface;
+    readonly config: RelayedFactoryConfig;
+    readonly relayFactoryInstance: Contract;
+    readonly factoryInstance: Contract;
+    constructor(config: RelayedFactoryConfig);
+    calculateAddress(saltNonce: string, validators: string[], intializor?: string): Promise<string>;
+    saltNonce(saltString?: string): string;
+    relayData(validator: Signer, setupTransaction: SetupTransaction, saltNonce: string): Promise<RelayDeployment>;
 }
 export interface VaultConfig extends VaultSetup {
     implementation: string;
@@ -23,21 +70,46 @@ export interface VaultConfig extends VaultSetup {
     fallbackHandler: string;
     nonce: BigNumber;
 }
+export declare type VaultConfigUpdate = {
+    action: "config_update";
+    readonly txHash: string;
+    readonly nonce?: number;
+};
+export declare type VaultExecutedTransaction = {
+    action: "executed_transaction";
+    readonly vaultHash: string;
+    readonly ethereumHash: string;
+    readonly nonce: number;
+    readonly success: boolean;
+};
+export declare type VaultAction = VaultConfigUpdate | VaultExecutedTransaction;
 export declare class Vault {
-    readonly signer: Signer;
     readonly address: string;
     readonly vaultInstance: Contract;
-    constructor(signer: Signer, vaultAddress: string);
-    loadTransactions(): Promise<string[]>;
+    constructor(provider: providers.Provider, vaultAddress: string);
+    loadTransactions(): Promise<VaultAction[]>;
     loadConfig(): Promise<VaultConfig>;
-    signExec(to: string, value: BigNumber, data: string, operation: number, nonce: BigNumber): Promise<string>;
-    signExecFromHash(ipfs: any, txHash: string): Promise<string>;
-    publishExec(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber): Promise<string>;
-    signUpdate(newSigners: string[], newThreshold: BigNumber, nonce: BigNumber): Promise<string>;
-    formatSignature(config: VaultConfig, hashProvider: () => Promise<string>, signatures?: string[]): Promise<{
+    fetchTxByHash(ipfs: any, txHash: string): Promise<VaultTransaction>;
+    publishTx(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber, meta?: any): Promise<string>;
+    formatSignature(config: VaultConfig, hashProvider: () => Promise<string>, signatures?: string[], signer?: Signer): Promise<{
         signaturesString: string;
         signers: string[];
     }>;
+    buildExecData(transaction: VaultTransaction, signatures?: string[], signer?: Signer): Promise<VaultExecInfo>;
+}
+export declare class VaultSigner {
+    readonly vault: Vault;
+    readonly signer: Signer;
+    constructor(vault: Vault, signer: Signer);
+    signTx(transaction: VaultTransaction): Promise<string>;
+    signTxFromHash(ipfs: any, txHash: string): Promise<string>;
+    signUpdate(newSigners: string[], newThreshold: BigNumber, nonce: BigNumber): Promise<string>;
+}
+export declare class VaultExecutor {
+    readonly vault: Vault;
+    readonly executor: Signer;
+    readonly writeVaultInstance: Contract;
+    constructor(vault: Vault, executor: Signer);
+    exec(to: string, value: BigNumber, data: string, operation: number, nonce: BigNumber, metaHash?: string, signatures?: string[]): Promise<void>;
     update(newSigners: string[], newThreshold: BigNumber, nonce: BigNumber, signatures?: string[]): Promise<void>;
-    exec(to: string, value: BigNumber, data: string, operation: number, nonce: BigNumber, signatures?: string[]): Promise<void>;
 }

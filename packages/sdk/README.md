@@ -1,8 +1,6 @@
 Delegate Registry
 =================
 
-[![Build Status](https://travis-ci.com/gnosis/delegate-registry.svg?branch=master)](https://travis-ci.com/gnosis/delegate-registry)
-
 Install
 -------
 ### Install requirements with yarn:

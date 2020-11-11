@@ -1,10 +1,10 @@
 import axios from 'axios'
 import { config } from 'dotenv'
 import IpfsClient from 'ipfs-http-client';
-import { ethers, utils, constants, Wallet, BigNumber } from 'ethers'
+import { ethers, utils, Wallet, BigNumber } from 'ethers'
 import StatelessVault from '@rmeissner/stateless-vault-contracts/build/contracts/StatelessVault.json'
 import RelayedFactory from '@rmeissner/stateless-vault-contracts/build/contracts/ProxyFactoryWithInitializor.json'
-import { Vault, VaultConfigUpdate, VaultExecutedTransaction, LocalVaultFactory, RelayedVaultFactory, SetupTransaction, VaultTransaction } from '../src/index'
+import { Vault, VaultSigner, VaultConfigUpdate, VaultExecutedTransaction, LocalVaultFactory, RelayedVaultFactory, SetupTransaction, VaultTransaction } from '../src/index'
 config()
 
 const mnemonic = process.env.MNEMONIC!!
@@ -42,8 +42,8 @@ const getOrCreateRelayed = async (salt: string): Promise<Vault> => {
     const vaultAddress = await factory.calculateAddress(
         saltNonce, signers
     )
-    const contractCode = await signer.provider.getCode(vaultAddress)
-    if (contractCode != "0x") return new Vault(signer, vaultAddress)
+    const contractCode = await provider.getCode(vaultAddress)
+    if (contractCode != "0x") return new Vault(provider, vaultAddress)
     const setupData = await factory.creationData({
         signers,
         threshold: BigNumber.from(1)
@@ -61,18 +61,17 @@ const getOrCreateRelayed = async (salt: string): Promise<Vault> => {
     const relayData = await factory.relayData(
         signer, data.transaction, saltNonce
     )
-    const vaultBalance = await signer.provider.getBalance(vaultAddress)
+    const vaultBalance = await provider.getBalance(vaultAddress)
     if (vaultBalance < BigNumber.from(data.fee)) throw Error(`Not enough funds to deploy to ${vaultAddress} (${utils.formatEther(vaultBalance)} < ${utils.formatEther(data.fee)})`)
     const deployment = await axios.post(`${relayUrl}/v1/deployment/execute`, relayData)
     console.log(`Deploy Vault @ ${browserUrlTx.replace("{}", deployment.data)} >>> fee ${utils.formatEther(data.fee)} ETH`)
     const deploymentTx = await signer.provider.getTransaction(deployment.data)
     await deploymentTx.wait()
-    return new Vault(signer, vaultAddress)
+    return new Vault(provider, vaultAddress)
 }
 
-const relayTransaction = async (vault: Vault, transaction: VaultTransaction, signatures?: string[]): Promise<string> => {
-    const sigs = signatures ? signatures : [await vault.signTx(transaction)]
-    const execData = await vault.buildExecData(transaction, sigs)
+const relayTransaction = async (vault: Vault, transaction: VaultTransaction, signatures: string[]): Promise<string> => {
+    const execData = await vault.buildExecData(transaction, signatures)
     const response = await axios.post(`${relayUrl}/v1/transactions/execute/vault`, execData)
     return response.data
 }
@@ -111,20 +110,23 @@ const test = async (submit: boolean) => {
     console.log("############# Transactions #############")
     const txs = await vault.loadTransactions();
     for (let tx of txs) {
-        if (tx instanceof VaultConfigUpdate) {
-            if (tx.nonce) {
-                console.log((`Config change (nonce ${tx.nonce}) @ ${browserUrlTx.replace("{}", tx.txHash)}`))
-            } else {
-                console.log(`Vault setup @ ${browserUrlTx.replace("{}", tx.txHash)}`)
-            }
-        } else if (tx instanceof VaultExecutedTransaction) {
-            if (tx.success) {
-                console.log(`Tx success (nonce ${tx.nonce}) @ ${browserUrlTx.replace("{}", tx.ethereumHash)}`)
-            } else {
-                console.log(`Tx failure (nonce ${tx.nonce}) @ ${browserUrlTx.replace("{}", tx.ethereumHash)}`)
-            }
-            const txInfo = await vault.fetchTxByHash(ipfs, tx.vaultHash)
-            console.log("Vault tx information: " + JSON.stringify(txInfo, undefined, 2))
+        switch (tx.action) {
+            case "config_update":
+                if (tx.nonce) {
+                    console.log((`Config change (nonce ${tx.nonce}) @ ${browserUrlTx.replace("{}", tx.txHash)}`))
+                } else {
+                    console.log(`Vault setup @ ${browserUrlTx.replace("{}", tx.txHash)}`)
+                }
+                break;
+            case "executed_transaction":
+                if (tx.success) {
+                    console.log(`Tx success (nonce ${tx.nonce}) @ ${browserUrlTx.replace("{}", tx.ethereumHash)}`)
+                } else {
+                    console.log(`Tx failure (nonce ${tx.nonce}) @ ${browserUrlTx.replace("{}", tx.ethereumHash)}`)
+                }
+                const txInfo = await vault.fetchTxByHash(ipfs, tx.vaultHash)
+                console.log("Vault tx information: " + JSON.stringify(txInfo, undefined, 2))
+                break;
         }
     }
     if (!submit) return
@@ -153,7 +155,8 @@ const test = async (submit: boolean) => {
     console.log("############ Sign Transaction ##########")
     const tx = await vault.fetchTxByHash(ipfs, txHash)
     console.log("Vault tx information: " + JSON.stringify(tx, undefined, 2))
-    const signature = await vault.signTx(tx)
+    const vaultSigner = new VaultSigner(vault, signer)
+    const signature = await vaultSigner.signTx(tx)
     console.log("Signature: " + signature);
 
     console.log("############ Relay Transaction ##########")
