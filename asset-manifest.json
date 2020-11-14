@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.js": "./static/js/main.bdd9ed29.chunk.js",
+    "main.js.map": "./static/js/main.bdd9ed29.chunk.js.map",
+    "runtime-main.js": "./static/js/runtime-main.c928da8d.js",
+    "runtime-main.js.map": "./static/js/runtime-main.c928da8d.js.map",
+    "static/js/2.0cd605ac.chunk.js": "./static/js/2.0cd605ac.chunk.js",
+    "static/js/2.0cd605ac.chunk.js.map": "./static/js/2.0cd605ac.chunk.js.map",
+    "index.html": "./index.html",
+    "service-worker.js": "./service-worker.js",
+    "service-worker.js.map": "./service-worker.js.map",
+    "static/js/2.0cd605ac.chunk.js.LICENSE.txt": "./static/js/2.0cd605ac.chunk.js.LICENSE.txt",
+    "static/media/averta-bold.woff2": "./static/media/averta-bold.8fdcd8d4.woff2",
+    "static/media/averta-normal.woff2": "./static/media/averta-normal.39d04879.woff2",
+    "static/media/yacate-logo.30ab8735.svg": "./static/media/yacate-logo.30ab8735.svg"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.c928da8d.js",
+    "static/js/2.0cd605ac.chunk.js",
+    "static/js/main.bdd9ed29.chunk.js"
+  ]
+}
