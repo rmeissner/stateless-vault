@@ -1,10 +1,9 @@
 import CID from 'cids'
-import { utils } from 'ethers'
 
-const addHexPrefix = (input: string) => input.toLowerCase().startsWith("0x") ? input : "0x" + input
+const removeHexPrefix = (input: string) => input.toLowerCase().startsWith("0x") ? input.slice(2) : input
 
 export const pullWithKeccak = async (ipfs: any, hashPart: string, encoding?: string): Promise<string> => {
-    const multhash = Buffer.concat([utils.arrayify("0x1b20"), utils.arrayify(addHexPrefix(hashPart))]);
+    const multhash = Buffer.concat([Buffer.from("1b20", "hex"), Buffer.from(removeHexPrefix(hashPart), "hex")])
     const cid = new CID(1, "raw", multhash, "base32")
     let out = ""
     for await (const file of ipfs.get(cid.toString())) {

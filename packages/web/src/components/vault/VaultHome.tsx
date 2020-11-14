@@ -6,8 +6,9 @@ import { AppBar, BottomNavigation, BottomNavigationAction, Container, createStyl
 import { Timeline, Settings } from '@material-ui/icons';
 import { getVaultInstance } from 'src/logic/vaultRepository';
 import styled from 'styled-components'
-import VaultTransactions from './VaultTransactions';
-import VaultSettings from './VaultSettings';
+import VaultTransactions from './transactions/VaultTransactions';
+import VaultTransactionDetails from './transactions/VaultTransactionDetails';
+import VaultSettings from './settings/VaultSettings';
 
 const styles = createStyles({
     toolbar: {
@@ -78,6 +79,9 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
             <Toolbar />
             <Container className={classes.content}>
                 <Switch>
+                    <Route path={`${match.path}/transactions/:vaultHash`}>
+                        <VaultTransactionDetails vault={active.instance} />
+                    </Route>
                     <Route path={`${match.path}/transactions`}>
                         <VaultTransactions vault={active.instance} />
                     </Route>

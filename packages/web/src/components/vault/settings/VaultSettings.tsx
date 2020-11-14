@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Vault, VaultConfig } from '@rmeissner/stateless-vault-sdk'
 import { Box, createStyles, WithStyles, withStyles, List, ListItem } from '@material-ui/core'
-import WalletInfo from '../WalletInfo'
+import WalletInfo from '../../WalletInfo'
 
 const styles = createStyles({
     list: {

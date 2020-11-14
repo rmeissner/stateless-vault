@@ -1,4 +1,6 @@
 import { Contract, utils, Signer, BigNumber, providers } from 'ethers';
+import { pullWithKeccak } from './utils/ipfs';
+export { pullWithKeccak };
 export interface LocalFactoryConfig {
     factoryAddress: string;
     vaultImplementationAddress: string;
@@ -83,13 +85,20 @@ export declare type VaultExecutedTransaction = {
     readonly success: boolean;
 };
 export declare type VaultAction = VaultConfigUpdate | VaultExecutedTransaction;
+export declare enum VaultTransactionStatus {
+    SUCCESS = 0,
+    FAILED = 1,
+    UNKNOWN = 2
+}
 export declare class Vault {
     readonly address: string;
     readonly vaultInstance: Contract;
     constructor(provider: providers.Provider, vaultAddress: string);
     loadTransactions(): Promise<VaultAction[]>;
+    loadTransactionState(vaultHash: string): Promise<VaultTransactionStatus>;
     loadConfig(): Promise<VaultConfig>;
-    fetchTxByHash(ipfs: any, txHash: string): Promise<VaultTransaction>;
+    pullWithLoader(ipfs: any, key: string, loader?: (key: string, encoding: string) => Promise<string>, encoding?: string): Promise<string>;
+    fetchTxByHash(ipfs: any, txHash: string, loader?: (skey: string, encoding: string) => Promise<string>): Promise<VaultTransaction>;
     publishTx(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber, meta?: any): Promise<string>;
     formatSignature(config: VaultConfig, hashProvider: () => Promise<string>, signatures?: string[], signer?: Signer): Promise<{
         signaturesString: string;

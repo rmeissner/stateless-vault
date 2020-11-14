@@ -7,6 +7,7 @@ import { prepareEthSignSignatureForSafe } from './utils/signatures';
 import StatelessVault from '@rmeissner/stateless-vault-contracts/build/contracts/StatelessVault.json';
 import Initializor from '@rmeissner/stateless-vault-contracts/build/contracts/Initializor.json';
 import RelayedFactory from '@rmeissner/stateless-vault-contracts/build/contracts/ProxyFactoryWithInitializor.json';
+export { pullWithKeccak };
 export class BaseFactory {
     constructor() {
         this.vaultInterface = Contract.getInterface(StatelessVault.abi);
@@ -81,6 +82,12 @@ export class RelayedVaultFactory extends BaseFactory {
         };
     }
 }
+export var VaultTransactionStatus;
+(function (VaultTransactionStatus) {
+    VaultTransactionStatus[VaultTransactionStatus["SUCCESS"] = 0] = "SUCCESS";
+    VaultTransactionStatus[VaultTransactionStatus["FAILED"] = 1] = "FAILED";
+    VaultTransactionStatus[VaultTransactionStatus["UNKNOWN"] = 2] = "UNKNOWN";
+})(VaultTransactionStatus || (VaultTransactionStatus = {}));
 export class Vault {
     constructor(provider, vaultAddress) {
         this.address = vaultAddress;
@@ -139,6 +146,23 @@ export class Vault {
         }
         return txs.reverse();
     }
+    async loadTransactionState(vaultHash) {
+        const failedTopic = this.vaultInstance.interface.getEventTopic("ExecutionFailure");
+        const successTopic = this.vaultInstance.interface.getEventTopic("ExecutionSuccess");
+        const events = await this.vaultInstance.queryFilter({
+            address: this.vaultInstance.address,
+            topics: [
+                [
+                    failedTopic, successTopic
+                ],
+                null,
+                vaultHash
+            ]
+        });
+        if (events.length != 1)
+            return VaultTransactionStatus.UNKNOWN;
+        return events.length[0].topics[0] === successTopic ? VaultTransactionStatus.SUCCESS : VaultTransactionStatus.FAILED;
+    }
     async loadConfig() {
         const configTopic = this.vaultInstance.interface.getEventTopic("Configuration");
         const failedTopic = this.vaultInstance.interface.getEventTopic("ExecutionFailure");
@@ -194,10 +218,15 @@ export class Vault {
             throw Error("could not load config");
         return currentConfig;
     }
-    async fetchTxByHash(ipfs, txHash) {
-        const hashData = await pullWithKeccak(ipfs, txHash);
-        const tx = await pullWithKeccak(ipfs, hashData.substring(68));
-        const txData = await pullWithKeccak(ipfs, tx.substring(3 * 64, 4 * 64));
+    async pullWithLoader(ipfs, key, loader, encoding) {
+        if (!loader)
+            pullWithKeccak(ipfs, key, encoding);
+        return loader(key, encoding);
+    }
+    async fetchTxByHash(ipfs, txHash, loader) {
+        const hashData = await this.pullWithLoader(ipfs, txHash, loader);
+        const tx = await this.pullWithLoader(ipfs, hashData.substring(68), loader);
+        const txData = await this.pullWithLoader(ipfs, tx.substring(3 * 64, 4 * 64), loader);
         const to = utils.getAddress(tx.substring(64 + 24, 2 * 64));
         const value = BigNumber.from("0x" + tx.substring(2 * 64, 3 * 64));
         const data = "0x" + txData;
@@ -208,7 +237,7 @@ export class Vault {
         let meta;
         if (metaHash !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
             try {
-                meta = await pullWithKeccak(ipfs, metaHash, "utf8");
+                meta = await this.pullWithLoader(ipfs, metaHash, loader, "utf8");
             }
             catch (e) {
                 console.error(e);

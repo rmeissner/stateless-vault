@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Vault, VaultAction } from '@rmeissner/stateless-vault-sdk';
-import { createStyles, WithStyles, withStyles, Box, List, ListItem } from '@material-ui/core';
+import { createStyles, WithStyles, withStyles, Box, List, ListItem, Typography } from '@material-ui/core';
+import { Link } from 'react-router-dom';
 
 const styles = createStyles({
     list: {
@@ -28,31 +29,36 @@ const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
     React.useEffect(() => {
         loadTransactions()
     }, [])
-    const listItems = transactions.map((tx, index) => {
+    const listItems = transactions.map((tx) => {
         switch (tx.action) {
             case "config_update":
                 return (<ListItem className={classes.item}>
-                    <Box>Config Update {index}/{transactions.length}</Box>
+                    <Box>Config Update</Box>
                     <Box textOverflow="ellipsis" overflow="hidden">{tx.txHash}</Box>
                 </ListItem>);
             case "executed_transaction":
                 if (tx.success) {
-                    return (<ListItem className={classes.item}>
-                        <Box>Tx success (nonce {tx.nonce.toString()} {index}/{transactions.length})</Box>
-                        <Box textOverflow="ellipsis" overflow="hidden">{tx.ethereumHash}</Box>
-                    </ListItem>);
+                    return (<Link to={location => `${location.pathname}/${tx.vaultHash}`}>
+                        <ListItem className={classes.item}>
+                            <Box>Tx success (nonce {tx.nonce.toString()})</Box>
+                            <Box textOverflow="ellipsis" overflow="hidden">{tx.ethereumHash}</Box>
+                        </ListItem>
+                    </Link>);
                 } else {
-                    return (<ListItem className={classes.item}>
-                        <Box>Tx failure (nonce {tx.nonce.toString()})</Box>
-                        <Box textOverflow="ellipsis" overflow="hidden">{tx.ethereumHash}</Box>
-                    </ListItem>);
+                    return (<Link to={location => `${location.pathname}/${tx.vaultHash}`}>
+                        <ListItem className={classes.item}>
+                            <Box>Tx failure (nonce {tx.nonce.toString()})</Box>
+                            <Box textOverflow="ellipsis" overflow="hidden">{tx.ethereumHash}</Box>
+                        </ListItem>
+                    </Link >);
                 }
         }
     })
     console.log({ listItems })
     return transactions.length > 0 ? (
         <List className={classes.list}>
-            { listItems }
+            <Typography>History</Typography>
+            { listItems}
         </List>
     ) : (
             <p>No Transactions yet</p>
