@@ -23,6 +23,7 @@ const GlobalStyles = createGlobalStyle`
     align-items: center;
     width: 100vw;
     height: 100vh;
+    background: #fefefe;
   }
 
   .web3connect-connect-button {

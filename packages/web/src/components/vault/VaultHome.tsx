@@ -13,7 +13,8 @@ import VaultSettings from './settings/VaultSettings';
 const styles = createStyles({
     toolbar: {
         justifyContent: 'center',
-        maxWidth: '100vw'
+        maxWidth: '100vw',
+        background: '#ffffff'
     },
     content: {
         paddingBottom: '64px',
@@ -73,7 +74,7 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
         <VaultHomeContainer>
             <AppBar position="fixed">
                 <Toolbar className={classes.toolbar}>
-                    <WalletInfo address={active.address!} />
+                    <WalletInfo address={active.address!} textColor="text"/>
                 </Toolbar>
             </AppBar>
             <Toolbar />
