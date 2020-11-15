@@ -1,9 +1,10 @@
 import { pullWithKeccak, Vault, VaultTransaction } from "@rmeissner/stateless-vault-sdk"
 import { loadProvider } from "./ethereumRepository"
-import { utils } from 'ethers'
+import { utils, BigNumber } from 'ethers'
 import IpfsClient from 'ipfs-http-client';
 
 const VAULTS_STORAGE_KEY = "vault_repository.vaults"
+const PROPOSAL_STORAGE_KEY_PREFIX = "vault_repository.proposals."
 const SELECTED_VAULT_STORAGE_KEY = "vault_repository.selected_vault"
 const STORAGE_IPFS_CACHE_PREFIX = "vault_repository.ipfs_cache."
 
@@ -18,16 +19,16 @@ const ipfs = IpfsClient({
     protocol: 'https'
 });
 
-const loadVaultStorage = (): { [key: string]: string} => {
+const loadVaultStorage = (): { [key: string]: string } => {
     const stored = localStorage.getItem(VAULTS_STORAGE_KEY)
     if (!stored) return {}
-    const holder: StorageHolder<{ [key: string]: string}> = JSON.parse(stored)
+    const holder: StorageHolder<{ [key: string]: string }> = JSON.parse(stored)
     if (holder.version != 0) throw Error("Unknown storage version " + holder.version)
     return holder.value
 }
 
-const writeVaultStorage = (vaults: { [key: string]: string})  => {
-    const holder: StorageHolder<{ [key: string]: string}> = {
+const writeVaultStorage = (vaults: { [key: string]: string }) => {
+    const holder: StorageHolder<{ [key: string]: string }> = {
         version: 0,
         value: vaults
     }
@@ -42,12 +43,12 @@ export const loadLastSelectedVault = async (): Promise<string | undefined> => {
     return holder.value
 }
 
-export const loadVaultName = async(address: string): Promise<string | undefined> => {
+export const loadVaultName = async (address: string): Promise<string | undefined> => {
     const vaults = await loadVaultStorage()
     return vaults[address]
 }
 
-export const managesVault = async(address: string): Promise<boolean> => {
+export const managesVault = async (address: string): Promise<boolean> => {
     const vaults = await loadVaultStorage()
     return address in vaults
 }
@@ -64,7 +65,7 @@ export const setLastSelectedVault = async (address: string) => {
     localStorage.setItem(SELECTED_VAULT_STORAGE_KEY, JSON.stringify(holder))
 }
 
-export const loadVaults = async(): Promise<{address: string, name: string}[]> => {
+export const loadVaults = async (): Promise<{ address: string, name: string }[]> => {
     try {
         const vaults = loadVaultStorage()
         return Object.keys(vaults).sort().map((address) => {
@@ -79,19 +80,19 @@ export const loadVaults = async(): Promise<{address: string, name: string}[]> =>
     }
 }
 
-export const setVault = async(address: string, name: string): Promise<void> => {
+export const setVault = async (address: string, name: string): Promise<void> => {
     const vaults = loadVaultStorage()
     vaults[address] = name
     writeVaultStorage(vaults)
 }
 
-export const removeVault = async(address: string): Promise<void> => {
+export const removeVault = async (address: string): Promise<void> => {
     const vaults = loadVaultStorage()
     delete vaults[address]
     writeVaultStorage(vaults)
 }
 
-export const getVaultInstance = async(address: string): Promise<Vault> => {
+export const getVaultInstance = async (address: string): Promise<Vault> => {
     if (!utils.isAddress(address)) throw Error("Invalid Address")
     return new Vault(loadProvider(), address)
 }
@@ -114,4 +115,51 @@ const cachedLoader = async (key: string, encoding: string): Promise<string> => {
 
 export const loadTransactionDetails = async (vault: Vault, vaultHash: string): Promise<VaultTransaction> => {
     return await vault.fetchTxByHash(ipfs, vaultHash, cachedLoader)
+}
+
+const loadProposalStorage = (vaultAddress: string): { [key: string]: VaultTransaction } => {
+    const stored = localStorage.getItem(PROPOSAL_STORAGE_KEY_PREFIX + vaultAddress)
+    if (!stored) return {}
+    const holder: StorageHolder<{ [key: string]: VaultTransaction }> = JSON.parse(stored)
+    if (holder.version != 0) throw Error("Unknown storage version " + holder.version)
+    return holder.value
+}
+
+const writeProposalStorage = (vaultAddress: string, vaults: { [key: string]: VaultTransaction }) => {
+    const holder: StorageHolder<{ [key: string]: VaultTransaction }> = {
+        version: 0,
+        value: vaults
+    }
+    localStorage.setItem(PROPOSAL_STORAGE_KEY_PREFIX + vaultAddress, JSON.stringify(holder))
+}
+
+export const loadTransactionProposals = async (vault: Vault): Promise<{ vaultHash: string, transaction: VaultTransaction }[]> => {
+    const proposals = loadProposalStorage(vault.address)
+    return Object.entries(proposals)
+        .map(([vaultHash, transaction]) => { return { vaultHash, transaction } })
+        .sort((left, right) => BigNumber.from(left.transaction.nonce).sub(BigNumber.from(right.transaction.nonce)).toNumber())
+}
+
+export const removeTransactionProposals = async (vault: Vault, vaultHashes: string[]): Promise<void> => {
+    const proposals = loadProposalStorage(vault.address)
+    for (let vaultHash of vaultHashes) {
+        delete proposals[vaultHash]
+    }
+    writeProposalStorage(vault.address, proposals)
+}
+
+export const addTransactionProposal = async (vault: Vault, transaction: VaultTransaction): Promise<string> => {
+    const vaultHash = await vault.publishTx(
+        ipfs,
+        transaction.to,
+        BigNumber.from(transaction.value),
+        transaction.data,
+        transaction.operation,
+        BigNumber.from(transaction.nonce),
+        transaction.meta
+    )
+    const proposals = loadProposalStorage(vault.address)
+    proposals[vaultHash] = transaction
+    writeProposalStorage(vault.address, proposals)
+    return vaultHash
 }

@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { Vault, VaultAction } from '@rmeissner/stateless-vault-sdk';
+import { Vault, VaultAction, VaultTransaction } from '@rmeissner/stateless-vault-sdk';
 import { createStyles, WithStyles, withStyles, Box, List, ListItem, Typography } from '@material-ui/core';
 import { Link } from 'react-router-dom';
+import { loadTransactionProposals, removeTransactionProposals } from 'src/logic/vaultRepository';
 
 const styles = createStyles({
     list: {
@@ -17,17 +18,24 @@ interface Props extends WithStyles<typeof styles> {
 
 const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
     const [transactions, setTransactions] = React.useState<VaultAction[]>([])
-    const loadTransactions = React.useCallback(async () => {
+    const [proposals, setProposals] = React.useState<{vaultHash: string, transaction: VaultTransaction}[]>([])
+    const loadItems = React.useCallback(async () => {
         try {
-            setTransactions(await vault.loadTransactions())
+            const transactions = await vault.loadTransactions()
+            await removeTransactionProposals(
+                vault, transactions.map((tx) => (tx.action === "executed_transaction") ? tx.vaultHash : "").filter((val) => val !== "")
+            )
+            setProposals(await loadTransactionProposals(vault))
+            setTransactions(transactions)
         } catch (e) {
             console.log(`Could not load transactions`)
             console.error(e)
         }
-    }, [vault, setTransactions])
+    }, [vault, setTransactions, setProposals])
     React.useEffect(() => {
+        setProposals([])
         setTransactions([])
-        loadTransactions()
+        loadItems()
     }, [vault.address])
     const listItems = transactions.map((tx) => {
         switch (tx.action) {
@@ -54,10 +62,29 @@ const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
                 }
         }
     })
-    return transactions.length > 0 ? (
+    const proposalItems = proposals.map((proposal) => (
+        <Link to={location => `${location.pathname}/${proposal.vaultHash}`}>
+            <ListItem className={classes.item}><Box>Tx propsal (nonce {proposal.transaction.nonce})</Box></ListItem>
+        </Link>
+    ))
+    return (proposalItems.length + transactions.length) > 0 ? (
         <List className={classes.list}>
-            <Typography>History</Typography>
-            { listItems}
+            {
+                proposalItems.length > 1 && (
+                    <>
+                        <ListItem className={classes.item}><Typography>Proposals</Typography></ListItem>
+                        { proposalItems}
+                    </>
+                )
+            }
+            {
+                listItems.length > 1 && (
+                    <>
+                        <ListItem className={classes.item}><Typography>History</Typography></ListItem>
+                        { listItems}
+                    </>
+                )
+            }
         </List>
     ) : (
             <p>No Transactions yet</p>

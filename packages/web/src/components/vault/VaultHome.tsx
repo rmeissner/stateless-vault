@@ -3,7 +3,7 @@ import WalletInfo from 'src/components/WalletInfo'
 import { Vault } from '@rmeissner/stateless-vault-sdk';
 import { Redirect, Route, Switch, useHistory, useParams, useRouteMatch } from "react-router-dom";
 import { AppBar, BottomNavigation, BottomNavigationAction, Container, createStyles, Toolbar, WithStyles, withStyles } from '@material-ui/core';
-import { Timeline, Settings, ArrowDropDown } from '@material-ui/icons';
+import { Timeline, Settings, ArrowDropDown, Apps } from '@material-ui/icons';
 import { getVaultInstance } from 'src/logic/vaultRepository';
 import styled from 'styled-components'
 import VaultTransactions from './transactions/VaultTransactions';
@@ -11,6 +11,7 @@ import VaultTransactionDetails from './transactions/VaultTransactionDetails';
 import AddVaultDialog from './settings/AddVaultDialog';
 import VaultSettings from './settings/VaultSettings';
 import VaultSelectionDialog from './settings/VaultSelectionDialog';
+import VaultApps from './apps/VaultApps';
 
 const styles = createStyles({
     title: {
@@ -96,6 +97,9 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
                     <Route path={`${match.path}/config`}>
                         <VaultSettings vault={active.instance} />
                     </Route>
+                    <Route path={`${match.path}/apps`}>
+                        <VaultApps vault={active.instance} />
+                    </Route>
                     <Route path="*">
                         <Redirect to={`${match.url}/transactions`} />
                     </Route>
@@ -106,6 +110,9 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
                 onChange={(_, newValue) => {
                     switch (newValue) {
                         case 1:
+                            history.push(`${match.url}/apps`)
+                            break;
+                        case 2:
                             history.push(`${match.url}/config`)
                             break;
                         default:
@@ -116,6 +123,7 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
                 showLabels
             >
                 <BottomNavigationAction label="Transactions" icon={<Timeline />} />
+                <BottomNavigationAction label="Apps" icon={<Apps />} />
                 <BottomNavigationAction label="Settings" icon={<Settings />} />
             </BottomNavigation>
             <VaultSelectionDialog open={showVaultSelection} onClose={() => setShowVaultSelection(false)} onAdd={() => setShowAddVault(true)} />
