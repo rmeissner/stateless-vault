@@ -4,7 +4,7 @@ import styled from 'styled-components'
 import { TextField } from '@material-ui/core'
 import { utils } from 'ethers'
 import { Button } from '@gnosis.pm/safe-react-components'
-import { loadLastSelectedVault, setLastSelectedVault, setVault } from 'src/logic/vaultRepository'
+import { loadLastSelectedVault, loadVaults, setLastSelectedVault, setVault } from 'src/logic/vaultRepository'
 import { useHistory } from 'react-router'
 import { undefinedOnError } from 'src/utils/general'
 
@@ -33,19 +33,25 @@ const Welcome: React.FC = () => {
       const cleanAddress = utils.getAddress(vaultAddress)
       await setVault(cleanAddress, vaultName)
       await setLastSelectedVault(cleanAddress)
-      history.push(`/${cleanAddress}`)
+      history.replace(`/${cleanAddress}`)
     } catch (e) {
       console.error(e)
       setInputError("Invalid vault address")
     }
   }, [setInputError, vaultAddress, vaultName, history])
 
-  console.log({ history })
   const loadSelected = React.useCallback(async () => {
     setLoading(true)
-    const selectedVault = await undefinedOnError(loadLastSelectedVault())
+    let selectedVault = await undefinedOnError(loadLastSelectedVault())
+    if (!selectedVault) {
+      const vaults = await loadVaults()
+      if (vaults.length > 0) {
+        selectedVault = vaults[0].address
+        await setLastSelectedVault(selectedVault)
+      }
+    }
     if (selectedVault) {
-      history.push(`/${selectedVault}`)
+      history.replace(`/${selectedVault}`)
     }
     setLoading(false)
   }, [history, setLoading])
@@ -53,7 +59,7 @@ const Welcome: React.FC = () => {
   React.useEffect(() => {
     loadSelected()
   }, [loadSelected])
-  
+
   if (loading) return (
     <OnboardingContainer>
       <img src={AppLogo} alt="App Logo" width="100"></img>

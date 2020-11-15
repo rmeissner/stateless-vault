@@ -42,9 +42,18 @@ export const loadLastSelectedVault = async (): Promise<string | undefined> => {
     return holder.value
 }
 
-export const loadVaultName = async(address: string): Promise<string> => {
+export const loadVaultName = async(address: string): Promise<string | undefined> => {
     const vaults = await loadVaultStorage()
     return vaults[address]
+}
+
+export const managesVault = async(address: string): Promise<boolean> => {
+    const vaults = await loadVaultStorage()
+    return address in vaults
+}
+
+export const removeLastSelectedVault = async () => {
+    localStorage.removeItem(SELECTED_VAULT_STORAGE_KEY)
 }
 
 export const setLastSelectedVault = async (address: string) => {
@@ -55,10 +64,15 @@ export const setLastSelectedVault = async (address: string) => {
     localStorage.setItem(SELECTED_VAULT_STORAGE_KEY, JSON.stringify(holder))
 }
 
-export const loadVaults = async(): Promise<[string, string][]> => {
+export const loadVaults = async(): Promise<{address: string, name: string}[]> => {
     try {
         const vaults = loadVaultStorage()
-        return Object.entries(vaults)
+        return Object.keys(vaults).sort().map((address) => {
+            return {
+                address,
+                name: vaults[address]
+            }
+        })
     } catch (e) {
         console.log(e)
         return []

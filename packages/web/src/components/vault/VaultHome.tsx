@@ -3,16 +3,20 @@ import WalletInfo from 'src/components/WalletInfo'
 import { Vault } from '@rmeissner/stateless-vault-sdk';
 import { Redirect, Route, Switch, useHistory, useParams, useRouteMatch } from "react-router-dom";
 import { AppBar, BottomNavigation, BottomNavigationAction, Container, createStyles, Toolbar, WithStyles, withStyles } from '@material-ui/core';
-import { Timeline, Settings } from '@material-ui/icons';
+import { Timeline, Settings, ArrowDropDown } from '@material-ui/icons';
 import { getVaultInstance } from 'src/logic/vaultRepository';
 import styled from 'styled-components'
 import VaultTransactions from './transactions/VaultTransactions';
 import VaultTransactionDetails from './transactions/VaultTransactionDetails';
+import AddVaultDialog from './settings/AddVaultDialog';
 import VaultSettings from './settings/VaultSettings';
+import VaultSelectionDialog from './settings/VaultSelectionDialog';
 
 const styles = createStyles({
+    title: {
+        flex: 1
+    },
     toolbar: {
-        justifyContent: 'center',
         maxWidth: '100vw',
         background: '#ffffff'
     },
@@ -51,6 +55,8 @@ interface Path {
 const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
     const match = useRouteMatch()
     const [active, setActive] = React.useState<Active | undefined>(undefined)
+    const [showVaultSelection, setShowVaultSelection] = React.useState(false)
+    const [showAddVault, setShowAddVault] = React.useState(false)
     const history = useHistory()
     const { vaultAddress } = useParams<Path>()
     React.useEffect(() => {
@@ -74,7 +80,8 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
         <VaultHomeContainer>
             <AppBar position="fixed">
                 <Toolbar className={classes.toolbar}>
-                    <WalletInfo address={active.address!} textColor="text"/>
+                    <WalletInfo address={active.address!} className={classes.title} textColor="text" />
+                    <ArrowDropDown color="action" onClick={() => setShowVaultSelection(true)} />
                 </Toolbar>
             </AppBar>
             <Toolbar />
@@ -111,6 +118,8 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
                 <BottomNavigationAction label="Transactions" icon={<Timeline />} />
                 <BottomNavigationAction label="Settings" icon={<Settings />} />
             </BottomNavigation>
+            <VaultSelectionDialog open={showVaultSelection} onClose={() => setShowVaultSelection(false)} onAdd={() => setShowAddVault(true)} />
+            <AddVaultDialog open={showAddVault} onClose={() => setShowAddVault(false)} />
         </VaultHomeContainer>
     )
 }

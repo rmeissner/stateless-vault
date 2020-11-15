@@ -16,7 +16,6 @@ interface Props extends WithStyles<typeof styles> {
 }
 
 const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
-    console.log("Load Transactions")
     const [transactions, setTransactions] = React.useState<VaultAction[]>([])
     const loadTransactions = React.useCallback(async () => {
         try {
@@ -27,8 +26,9 @@ const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
         }
     }, [vault, setTransactions])
     React.useEffect(() => {
+        setTransactions([])
         loadTransactions()
-    }, [])
+    }, [vault.address])
     const listItems = transactions.map((tx) => {
         switch (tx.action) {
             case "config_update":
@@ -54,7 +54,6 @@ const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
                 }
         }
     })
-    console.log({ listItems })
     return transactions.length > 0 ? (
         <List className={classes.list}>
             <Typography>History</Typography>
