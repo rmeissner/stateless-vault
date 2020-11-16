@@ -5,11 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import '../base/SignatureCheck.sol';
 import '../base/Executor.sol';
-
-interface ProxyFactory {
-    function createProxyWithNonce(address implementation, bytes calldata initializer, uint256 saltNonce) external returns (address payable);
-    function proxyCreationCode() external pure returns (bytes memory);
-}
+import './IProxyFactory.sol';
 
 contract Initializor2 is Executor {
 

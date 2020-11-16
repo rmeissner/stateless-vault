@@ -25,7 +25,9 @@
     "contracts": [
       "StatelessVault",
       "ProxyFactoryWithInitializor",
-      "Initializor"
+      "Initializor",
+      "ProxyFactoryWithInitializor2",
+      "Initializor2"
     ]
   },
   "author": "msc.meissner@gmail.com",

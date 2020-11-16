@@ -1,10 +1,10 @@
 const { generateSignaturesWithEthSign, execVaultTransaction } = require('./utils/vault.js')
+const { logGasUsage } = require('./utils/general.js')
 const { Address0, assertRejects } = require('./utils/general.js')
 const { stripHexPrefix } = require("ethereumjs-util")
 const { solidityPack } = require('ethereumjs-abi')
 
 const Vault = artifacts.require("./StatelessVault.sol")
-const Initializor = artifacts.require("./Initializor2.sol")
 const Factory = artifacts.require("./ProxyFactoryWithInitializor2.sol")
 const MultiSend = artifacts.require("./MultiSend.sol")
 
@@ -20,9 +20,8 @@ contract('StatelessVault', function(accounts) {
         return encoded.toString("hex")
     }
 
-    it.only('create with initializor and deposit and withdraw 1 ETH', async () => {
+    it('create with initializor2 and deposit and withdraw 1 ETH', async () => {
         const factory = await Factory.deployed()
-        const initializor = await Initializor.deployed()
         const vaultImplementation = await Vault.deployed()
         // Create Vault       
         config = {
@@ -88,7 +87,7 @@ contract('StatelessVault', function(accounts) {
         )
 
         // Test valid data
-        await factory.createProxyWithInitializor(
+        logGasUsage("Proxy deployment", await factory.createProxyWithInitializor(
             vaultImplementation.address, 
             Address0,
             0,
@@ -98,10 +97,10 @@ contract('StatelessVault', function(accounts) {
             signatures,
             0,
             { from: executor }
-        )
+        ))
         vault = await Vault.at(vaultAddress)
 
-        console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
         // Deposit 1 ETH + some spare money for execution 
         assert.equal(await web3.eth.getBalance(vault.address), 0)
         await web3.eth.sendTransaction({from: accounts[9], to: vault.address, value: web3.utils.toWei("1.0", 'ether')})
@@ -110,15 +109,14 @@ contract('StatelessVault', function(accounts) {
         // Withdraw 1 ETH
         await execVaultTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("1.0", 'ether'), "0x", 0, 0, 0, config.defaultSigners, config, executor, true)
 
-        console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
         assert.equal(await web3.eth.getBalance(vault.address), 0)
     })
 
-    it.only('create with initializor and deposit and withdraw 1 ETH', async () => {
+    it('create with initializor2 and deposit and withdraw 1 ETH', async () => {
         const multiSend = await MultiSend.new()
         const factory = await Factory.deployed()
-        const initializor = await Initializor.deployed()
         const vaultImplementation = await Vault.deployed()
         // Create Vault       
         config = {
@@ -174,7 +172,7 @@ contract('StatelessVault', function(accounts) {
         assert.equal(await web3.eth.getBalance(vaultAddress), web3.utils.toWei("1.0", 'ether'))
 
         // Test valid data
-        await factory.createProxyWithInitializor(
+        logGasUsage("Proxy deployment", await factory.createProxyWithInitializor(
             vaultImplementation.address, 
             multiSend.address,
             0,
@@ -184,7 +182,7 @@ contract('StatelessVault', function(accounts) {
             signatures,
             0,
             { from: executor }
-        )
+        ))
         vault = await Vault.at(vaultAddress)
 
         assert.equal(await web3.eth.getBalance(vault.address), web3.utils.toWei("0.5", 'ether'))
@@ -192,9 +190,9 @@ contract('StatelessVault', function(accounts) {
         // Withdraw 1 ETH
         await execVaultTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 0, config.defaultSigners, config, executor, true)
 
-        console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
-        console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
         assert.equal(await web3.eth.getBalance(vault.address), 0)
     })
 })

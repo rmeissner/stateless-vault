@@ -4,10 +4,7 @@ pragma solidity >=0.7.0 <0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import '../base/SignatureCheck.sol';
 import '../base/Executor.sol';
-
-interface ProxyFactory {
-    function createProxyWithNonce(address implementation, bytes calldata initializer, uint256 saltNonce) external returns (address payable);
-}
+import './IProxyFactory.sol';
 
 contract Initializor is SignatureCheck, Executor {
     bytes32 constant DOMAIN_SEPARATOR_TYPEHASH = keccak256(
