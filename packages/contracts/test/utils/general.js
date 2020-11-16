@@ -69,6 +69,7 @@ const getParamFromTxEvent = async (transaction, eventName, paramName, contract, 
         logGasUsage(subject, transaction)
     }
     let logs = transaction.logs
+    console.log(transaction.rawLogs)
     if(eventName != null) {
         logs = logs.filter((l) => l.event === eventName && l.address === contract)
     }

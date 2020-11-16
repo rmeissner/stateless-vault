@@ -1,11 +1,12 @@
 const { generateSignaturesWithEthSign, execVaultTransaction } = require('./utils/vault.js')
-const { logGasUsage } = require('./utils/general.js')
-const { Address0, assertRejects } = require('./utils/general.js')
-const { stripHexPrefix } = require("ethereumjs-util")
-const { solidityPack } = require('ethereumjs-abi')
+const { Address0, logGasUsage, assertRejects } = require('./utils/general.js')
+const { bufferToHex, stripHexPrefix } = require("ethereumjs-util")
+const { soliditySHA3, solidityPack, rawDecode } = require('ethereumjs-abi')
 
 const Vault = artifacts.require("./StatelessVault.sol")
 const Factory = artifacts.require("./ProxyFactoryWithInitializor2.sol")
+const Initializor = artifacts.require("./Initializor2.sol")
+const ProxyFactory = artifacts.require("./ProxyFactory.sol")
 const MultiSend = artifacts.require("./MultiSend.sol")
 
 contract('StatelessVault', function(accounts) {
@@ -181,6 +182,105 @@ contract('StatelessVault', function(accounts) {
             deploymentValidators,
             signatures,
             0,
+            { from: executor }
+        ))
+        vault = await Vault.at(vaultAddress)
+
+        assert.equal(await web3.eth.getBalance(vault.address), web3.utils.toWei("0.5", 'ether'))
+
+        // Withdraw 1 ETH
+        await execVaultTransaction('executeTransaction withdraw 0.5 ETH', vault, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x", 0, 0, 0, config.defaultSigners, config, executor, true)
+
+        //console.log((await vault.getPastEvents("Configuration", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionSuccess", { fromBlock: "earliest" })).map(e => e.args))
+        //console.log((await vault.getPastEvents("ExecutionFailure", { fromBlock: "earliest" })).map(e => e.args))
+        assert.equal(await web3.eth.getBalance(vault.address), 0)
+    })
+
+    it('frontrun create with initializor2 and deposit and withdraw 1 ETH', async () => {
+        const multiSend = await MultiSend.new()
+        const factory = await Factory.deployed()
+        const vaultImplementation = await Vault.deployed()
+        // Create Vault       
+        config = {
+            owners: [accounts[0], accounts[1], accounts[2]],
+            defaultSigners: [accounts[0], accounts[2]],
+            threshold: 2
+        }
+
+        const deploymentValidators = config.defaultSigners
+
+        // Deploy the proxy ahead of time
+        const proxyFactory = await ProxyFactory.at(await factory.factory())
+        const initializor = await Initializor.at(await factory.initializor())
+        const nonce = (new Date()).getTime()
+        const saltNonce = bufferToHex(soliditySHA3(
+            ["uint256", "address[]"], 
+            [nonce, deploymentValidators])
+        )
+        const proxyCreationData = initializor.contract.methods.setDeployer(factory.address).encodeABI()
+        
+        const frontrunTx = await proxyFactory.createProxyWithNonce(initializor.address, proxyCreationData, saltNonce)
+        const proxyAddress = "0x" + rawDecode(['address'], Buffer.from(stripHexPrefix(frontrunTx.receipt.rawLogs[0].data), 'hex'))[0]
+        const proxyCode = await web3.eth.getCode(proxyAddress)
+        assert.equal(await proxyFactory.proxyRuntimeCode(), proxyCode)
+
+        const vaultAddress = await factory.calculateProxyAddress(deploymentValidators, nonce)
+
+        assert.equal(proxyAddress, vaultAddress.toLowerCase())
+
+        const vaultData = await vaultImplementation.contract.methods.setup(
+            config.owners, config.threshold, Address0, Address0, Address0
+        ).encodeABI()
+
+        const nestedTransactionData = '0x' +
+            encodeData(0, vaultAddress, 0, vaultData) +
+            encodeData(0, accounts[9], web3.utils.toWei("0.5", 'ether'), "0x")
+
+        const multiSendData = await multiSend.contract.methods.multiSend(nestedTransactionData).encodeABI()
+
+        const setupHash = await factory.generateSetupHash(
+            vaultAddress,
+            vaultImplementation.address,
+            multiSend.address,
+            0,
+            multiSendData, 
+            1,
+            solidityPack(["address[]"], [deploymentValidators])
+        )
+        const signatures = await generateSignaturesWithEthSign(setupHash, deploymentValidators)
+
+        // Test not enough funds
+        await assertRejects(
+            factory.createProxyWithInitializor(
+                vaultImplementation.address, 
+                multiSend.address,
+                0,
+                multiSendData, 
+                1,
+                deploymentValidators,
+                signatures,
+                nonce,
+                { from: executor }
+            ),
+            "Revert if not enough funds"
+        )
+
+        // Deposit 1 ETH
+        assert.equal(await web3.eth.getBalance(vaultAddress), 0)
+        await web3.eth.sendTransaction({from: accounts[9], to: vaultAddress, value: web3.utils.toWei("1.0", 'ether')})
+        assert.equal(await web3.eth.getBalance(vaultAddress), web3.utils.toWei("1.0", 'ether'))
+
+        // Test valid data
+        logGasUsage("Proxy deployment", await factory.createProxyWithInitializor(
+            vaultImplementation.address, 
+            multiSend.address,
+            0,
+            multiSendData, 
+            1,
+            deploymentValidators,
+            signatures,
+            nonce,
             { from: executor }
         ))
         vault = await Vault.at(vaultAddress)
