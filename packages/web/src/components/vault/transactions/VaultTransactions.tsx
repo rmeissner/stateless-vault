@@ -67,10 +67,11 @@ const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
             <ListItem className={classes.item}><Box>Tx propsal (nonce {proposal.transaction.nonce})</Box></ListItem>
         </Link>
     ))
+    console.log({proposalItems})
     return (proposalItems.length + transactions.length) > 0 ? (
         <List className={classes.list}>
             {
-                proposalItems.length > 1 && (
+                proposalItems.length > 0 && (
                     <>
                         <ListItem className={classes.item}><Typography>Proposals</Typography></ListItem>
                         { proposalItems}
@@ -78,7 +79,7 @@ const VaultTransactions: React.FC<Props> = ({ vault, classes }) => {
                 )
             }
             {
-                listItems.length > 1 && (
+                listItems.length > 0 && (
                     <>
                         <ListItem className={classes.item}><Typography>History</Typography></ListItem>
                         { listItems}

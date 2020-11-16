@@ -135,25 +135,25 @@ const test = async (submit: boolean) => {
     console.log()
     console.log("############ New Transaction ###########")
     const estimatedTx = await prepareRelayTransaction("0xfd807255a0557655e6632A34e9EB36746c6C76d9", utils.parseEther("0.001"), "0x", 0)
-    const txHash = await vault.publishTx(
+    const { vaultHash } = await vault.publishTx(
         ipfs,
         estimatedTx.transaction.to,
         BigNumber.from(estimatedTx.transaction.value),
         estimatedTx.transaction.data,
         estimatedTx.transaction.operation,
         config.nonce,
-        {
+        JSON.stringify({
             app: "Example script",
             purpose: "Simple script transfer",
             fee: estimatedTx.fee,
             relayer: estimatedTx.feeReceiver
-        }
+        })
     )
-    console.log("Vault tx hash: " + txHash)
+    console.log("Vault tx hash: " + vaultHash)
     console.log()
     console.log()
     console.log("############ Sign Transaction ##########")
-    const tx = await vault.fetchTxByHash(ipfs, txHash)
+    const tx = await vault.fetchTxByHash(ipfs, vaultHash)
     console.log("Vault tx information: " + JSON.stringify(tx, undefined, 2))
     const vaultSigner = new VaultSigner(vault, signer)
     const signature = await vaultSigner.signTx(tx)

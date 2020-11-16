@@ -149,7 +149,8 @@ export const removeTransactionProposals = async (vault: Vault, vaultHashes: stri
 }
 
 export const addTransactionProposal = async (vault: Vault, transaction: VaultTransaction): Promise<string> => {
-    const vaultHash = await vault.publishTx(
+    console.log(ipfs)
+    const { vaultHash, metaHash } = await vault.publishTx(
         ipfs,
         transaction.to,
         BigNumber.from(transaction.value),
@@ -158,6 +159,7 @@ export const addTransactionProposal = async (vault: Vault, transaction: VaultTra
         BigNumber.from(transaction.nonce),
         transaction.meta
     )
+    transaction.metaHash = metaHash
     const proposals = loadProposalStorage(vault.address)
     proposals[vaultHash] = transaction
     writeProposalStorage(vault.address, proposals)

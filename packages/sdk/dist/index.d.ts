@@ -99,7 +99,10 @@ export declare class Vault {
     loadConfig(): Promise<VaultConfig>;
     pullWithLoader(ipfs: any, key: string, loader?: (key: string, encoding: string) => Promise<string>, encoding?: string): Promise<string>;
     fetchTxByHash(ipfs: any, txHash: string, loader?: (skey: string, encoding: string) => Promise<string>): Promise<VaultTransaction>;
-    publishTx(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber, meta?: any): Promise<string>;
+    publishTx(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber, meta?: string): Promise<{
+        vaultHash: string;
+        metaHash: string;
+    }>;
     formatSignature(config: VaultConfig, hashProvider: () => Promise<string>, signatures?: string[], signer?: Signer): Promise<{
         signaturesString: string;
         signers: string[];

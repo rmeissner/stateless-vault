@@ -375,14 +375,14 @@ export class Vault {
         }
     }
 
-    async publishTx(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber, meta?: any): Promise<string> {
-        const metaData = meta ? JSON.stringify(meta) : null
-        const metaHash = metaData ? utils.solidityKeccak256(["string"], [metaData]) : "0x"
+    async publishTx(ipfs: any, to: string, value: BigNumber, dataString: string, operation: number, nonce: BigNumber, meta?: string): Promise<{vaultHash: string, metaHash: string}> {
+        const metaHash = meta ? utils.solidityKeccak256(["string"], [meta]) : "0x"
 
-        if (metaData) {
+        if (meta) {
             console.log("Publish meta data")
-            for await (const res of ipfs.add(metaData, { hashAlg: "keccak-256" })) {
-                console.log(`metadata: ${res.path}`);
+            {
+                const res = await ipfs.add(meta, { hashAlg: "keccak-256" })
+                console.log(`metadata: ${res.path}`)
             }
         }
 
@@ -415,26 +415,29 @@ export class Vault {
 
         // data
         console.log("Publish data")
-        for await (const res of ipfs.add(data, { hashAlg: "keccak-256" })) {
-            console.log(`metadata: ${res.path}`);
+        {
+            const res = await ipfs.add(data, { hashAlg: "keccak-256" })
+            console.log(`metadata: ${res.path}`)
         }
         // TX_TYPEHASH, to, value, keccak256(data), operation, minAvailableGas, nonce
         console.log("Publish tx")
-        for await (const res of ipfs.add(vaultTx.encodeData(), { hashAlg: "keccak-256" })) {
-            console.log(`metadata: ${res.path}`);
+        {
+            const res = await ipfs.add(vaultTx.encodeData(), { hashAlg: "keccak-256" })
+            console.log(`metadata: ${res.path}`)
         }
 
         // byte(0x19), byte(0x01), domainSeparator, txHash
         console.log("Publish tx hash")
-        const txHash = "0x" + vaultTx.signHash().toString('hex')
-        for await (const res of ipfs.add(vaultTx.encode(), { hashAlg: "keccak-256" })) {
-            console.log(`metadata: ${res.path}`);
+        {
+            const res = await ipfs.add(vaultTx.encode(), { hashAlg: "keccak-256" })
+            console.log(`metadata: ${res.path}`)
         }
+        const txHash = "0x" + vaultTx.signHash().toString('hex')
         const dataHash = await this.vaultInstance.generateTxHash(
             to, value, data, operation, minAvailableGas, nonce, metaHash
         )
         if (txHash != dataHash) throw Error("Invalid hash generated")
-        return txHash
+        return { vaultHash: txHash, metaHash }
     }
 
     async formatSignature(config: VaultConfig, hashProvider: () => Promise<string>, signatures?: string[], signer?: Signer): Promise<{ signaturesString: string, signers: string[] }> {

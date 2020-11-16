@@ -1456,10 +1456,9 @@
     "@ethersproject/properties" "^5.0.3"
     "@ethersproject/strings" "^5.0.4"
 
-"@gnosis.pm/safe-apps-sdk@^0.4.2":
+"@gnosis.pm/safe-apps-sdk@https://github.com/gnosis/safe-apps-sdk#a6c168b":
   version "0.4.2"
-  resolved "https://registry.yarnpkg.com/@gnosis.pm/safe-apps-sdk/-/safe-apps-sdk-0.4.2.tgz#ae87b2164931c006cb0efdede3d82ff210df1648"
-  integrity sha512-BwA2dyCebPMdi4JhhTkp6EjkhEM6vAIviKdhqHiHnSmL+sDfxtP1jdOuE8ME2/4+5TiLSS8k8qscYjLSlf1LLw==
+  resolved "https://github.com/gnosis/safe-apps-sdk#a6c168b9d9d663a2e9f5cdd364998034675b16fa"
 
 "@gnosis.pm/safe-contracts@^1.2.0":
   version "1.2.0"
