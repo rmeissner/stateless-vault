@@ -1,10 +1,13 @@
 import * as React from 'react'
-import { Vault, VaultTransaction } from '@rmeissner/stateless-vault-sdk';
-import { addTransactionProposal } from 'src/logic/vaultRepository';
+import { Vault } from '@rmeissner/stateless-vault-sdk';
 import { Box, Button, Typography, createStyles, withStyles, WithStyles, List, ListItem, Dialog, DialogContent, DialogTitle, DialogActions } from '@material-ui/core'
 import { RequestId, Transaction } from '@gnosis.pm/safe-apps-sdk'
 import AccountInfo from 'src/components/WalletInfo';
 import { utils } from 'ethers';
+import { buildMultiSend, metaTxToVaultTx } from '../utils/multisend';
+import { requestFee } from 'src/logic/relayRepository';
+import { addTransactionProposal } from 'src/logic/vaultRepository';
+import { relayUrl } from 'src/utils/config';
 
 const styles = createStyles({
     item: {
@@ -22,39 +25,19 @@ interface Props extends WithStyles<typeof styles> {
     onReject: (requestId: RequestId, message: string) => void
 }
 
-const buildMultiSend = async (transactions: Transaction[], nonce: string, meta: any | undefined): Promise<VaultTransaction> => {
-    const metaString = meta ? JSON.stringify(meta) : undefined
-    if (transactions.length == 1) return {
-        to: transactions[0].to,
-        value: transactions[0].value,
-        data: transactions[0].data,
-        operation: 0,
-        minAvailableGas: "0x00",
-        nonce,
-        metaHash: "", // Will be set by repo,
-        meta: metaString
-    }
-    return {
-        to: transactions[0].to,
-        value: transactions[0].value,
-        data: transactions[0].data,
-        operation: 0,
-        minAvailableGas: "0x00",
-        nonce,
-        metaHash: "", // Will be set by repo,
-        meta: metaString
-    }
-}
-
 const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, transactions, requestId, app, onConfirm, onReject }) => {
     const proposeTx = React.useCallback(async () => {
         try {
+            const transaction = await buildMultiSend(transactions)
+            const estimate = await requestFee(transaction)
             const config = await vault.loadConfig()
             const meta = {
-                app: app
+                app: app,
+                fee: estimate.fee,
+                feeReceiver: estimate.feeReceiver,
+                relay: relayUrl
             }
-            const transaction = await buildMultiSend(transactions, config.nonce.toHexString(), meta)
-            await addTransactionProposal(vault, transaction)
+            await addTransactionProposal(vault, metaTxToVaultTx(estimate.transaction, config.nonce, meta))
             onConfirm(requestId, "")
         } catch (e) {
             console.error(e)
