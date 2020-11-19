@@ -7,7 +7,7 @@ import { relayCreation, RelayEstimation, requestFee } from 'src/logic/relayRepos
 import { getSignerAddress, loadProvider, setLocalSigner, setAppSigner, loadSigner } from 'src/logic/ethereumRepository';
 import ConnectButton from '../../ConnectButton';
 import { factoryAddress, vaultImplementationAddress } from 'src/utils/config';
-import { setLastSelectedVault } from 'src/logic/vaultRepository';
+import { setLastSelectedVault, setVault } from 'src/logic/vaultRepository';
 import { useHistory } from 'react-router';
 
 const styles = createStyles({
@@ -46,6 +46,7 @@ const VaultCreationDialog: React.FC<Props> = ({ open, onClose }) => {
             const deploymentTxHash = await relayCreation(relayData)
             const deploymentTx = await provider.getTransaction(deploymentTxHash)
             await deploymentTx.wait()
+            await setVault(estimate.address, "My App Vault")
             await setLastSelectedVault(estimate.address)
             history.push('/')
             onClose()
