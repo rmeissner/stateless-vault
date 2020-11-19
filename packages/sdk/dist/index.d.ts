@@ -8,7 +8,6 @@ export interface LocalFactoryConfig {
 }
 export interface RelayedFactoryConfig {
     factoryAddress: string;
-    relayFactoryAddress: string;
     vaultImplementationAddress: string;
     provider: providers.Provider;
 }
@@ -56,12 +55,10 @@ export interface VaultExecInfo {
     transaction: VaultTransaction;
 }
 export declare class RelayedVaultFactory extends BaseFactory {
-    readonly initializorInterface: utils.Interface;
     readonly config: RelayedFactoryConfig;
-    readonly relayFactoryInstance: Contract;
     readonly factoryInstance: Contract;
     constructor(config: RelayedFactoryConfig);
-    calculateAddress(saltNonce: string, validators: string[], intializor?: string): Promise<string>;
+    calculateAddress(saltNonce: string, validators: string[]): Promise<string>;
     saltNonce(saltString?: string): string;
     relayData(validator: Signer, setupTransaction: SetupTransaction, saltNonce: string): Promise<RelayDeployment>;
 }

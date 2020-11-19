@@ -18,9 +18,10 @@ interface Props extends WithStyles<typeof styles> {
     open: boolean,
     onClose: () => void
     onAdd?: () => void
+    onCreate?: () => void
 }
 
-const VaultSelectionDialog: React.FC<Props> = ({ classes, open, onClose, onAdd }) => {
+const VaultSelectionDialog: React.FC<Props> = ({ classes, open, onClose, onAdd, onCreate }) => {
     const history = useHistory()
     const [vaults, setVaults] = React.useState<{ address: string, name: string }[]>([])
     const select = React.useCallback(async (address: string) => {
@@ -80,6 +81,11 @@ const VaultSelectionDialog: React.FC<Props> = ({ classes, open, onClose, onAdd }
                         {onAdd && (
                             <ListItem>
                                 <Button onClick={() => { onAdd(); onClose() }} color="default">Add vault</Button>
+                            </ListItem>
+                        )}
+                        {onCreate && (
+                            <ListItem>
+                                <Button onClick={() => { onCreate(); onClose() }} color="default">Create vault</Button>
                             </ListItem>
                         )}
                     </List>

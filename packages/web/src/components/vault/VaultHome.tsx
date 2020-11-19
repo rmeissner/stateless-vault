@@ -12,6 +12,7 @@ import AddVaultDialog from './settings/AddVaultDialog';
 import VaultSettings from './settings/VaultSettings';
 import VaultSelectionDialog from './settings/VaultSelectionDialog';
 import VaultApps from './apps/VaultApps';
+import VaultCreationDialog from './settings/VaultCreationDialog';
 
 const styles = createStyles({
     title: {
@@ -57,6 +58,7 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
     const match = useRouteMatch()
     const [active, setActive] = React.useState<Active | undefined>(undefined)
     const [showVaultSelection, setShowVaultSelection] = React.useState(false)
+    const [showVaultCreation, setShowVaultCreation] = React.useState(false)
     const [showAddVault, setShowAddVault] = React.useState(false)
     const history = useHistory()
     const { vaultAddress } = useParams<Path>()
@@ -126,7 +128,8 @@ const VaultHome: React.FC<WithStyles<typeof styles>> = ({ classes }) => {
                 <BottomNavigationAction label="Apps" icon={<Apps />} />
                 <BottomNavigationAction label="Settings" icon={<Settings />} />
             </BottomNavigation>
-            <VaultSelectionDialog open={showVaultSelection} onClose={() => setShowVaultSelection(false)} onAdd={() => setShowAddVault(true)} />
+            <VaultSelectionDialog open={showVaultSelection} onClose={() => setShowVaultSelection(false)} onAdd={() => setShowAddVault(true)} onCreate={() => setShowVaultCreation(true)} />
+            <VaultCreationDialog open={showVaultCreation} onClose={() => setShowVaultCreation(false)} />
             <AddVaultDialog open={showAddVault} onClose={() => setShowAddVault(false)} />
         </VaultHomeContainer>
     )

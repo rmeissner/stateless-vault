@@ -5,8 +5,7 @@ import { buildValidationData } from './utils/proof'
 import { pullWithKeccak } from './utils/ipfs'
 import { prepareEthSignSignatureForSafe } from './utils/signatures'
 import StatelessVault from '@rmeissner/stateless-vault-contracts/build/contracts/StatelessVault.json'
-import Initializor from '@rmeissner/stateless-vault-contracts/build/contracts/Initializor.json'
-import RelayedFactory from '@rmeissner/stateless-vault-contracts/build/contracts/ProxyFactoryWithInitializor.json'
+import RelayedFactory from '@rmeissner/stateless-vault-contracts/build/contracts/ProxyFactoryWithInitializor2.json'
 
 export { pullWithKeccak }
 
@@ -18,7 +17,6 @@ export interface LocalFactoryConfig {
 
 export interface RelayedFactoryConfig {
     factoryAddress: string,
-    relayFactoryAddress: string,
     vaultImplementationAddress: string,
     provider: providers.Provider
 }
@@ -109,34 +107,17 @@ export interface VaultExecInfo {
 }
 
 export class RelayedVaultFactory extends BaseFactory {
-    readonly initializorInterface = Contract.getInterface(Initializor.abi)
     readonly config: RelayedFactoryConfig
-    readonly relayFactoryInstance: Contract
     readonly factoryInstance: Contract
 
     constructor(config: RelayedFactoryConfig) {
         super()
         this.config = config
-        this.relayFactoryInstance = new Contract(config.relayFactoryAddress, RelayedFactory.abi, config.provider)
-        this.factoryInstance = new Contract(config.factoryAddress, FactoryAbi, config.provider)
+        this.factoryInstance = new Contract(config.factoryAddress, RelayedFactory.abi, config.provider)
     }
 
-    async calculateAddress(saltNonce: string, validators: string[], intializor?: string): Promise<string> {
-        const proxyCreationData = this.initializorInterface.encodeFunctionData(
-            "setValidators",
-            [validators]
-        )
-        const intializorAddress = intializor || await this.relayFactoryInstance.callStatic.initializor()
-        const initializerHash = utils.solidityKeccak256(["bytes"], [proxyCreationData])
-        const salt = utils.solidityKeccak256(['bytes32', 'uint256'], [initializerHash, saltNonce])
-        const proxyCreationCode = await this.factoryInstance.proxyCreationCode()
-        const proxyDeploymentCode = utils.solidityPack(['bytes', 'uint256'], [proxyCreationCode, intializorAddress])
-        const proxyDeploymentCodeHash = utils.solidityKeccak256(["bytes"], [proxyDeploymentCode])
-        const address = utils.solidityKeccak256(
-            ['bytes1', 'address', 'bytes32', 'bytes32'],
-            ["0xFF", this.config.factoryAddress, salt, proxyDeploymentCodeHash]
-        )
-        return "0x" + address.slice(-40)
+    async calculateAddress(saltNonce: string, validators: string[]): Promise<string> {
+        return await this.factoryInstance.callStatic.calculateProxyAddress(validators, saltNonce)
     }
 
     saltNonce(saltString?: string): string {
@@ -144,11 +125,9 @@ export class RelayedVaultFactory extends BaseFactory {
     }
 
     async relayData(validator: Signer, setupTransaction: SetupTransaction, saltNonce: string): Promise<RelayDeployment> {
-        const intializorAddress = await this.relayFactoryInstance.callStatic.initializor()
-        const initializor = new Contract(intializorAddress, this.initializorInterface, this.config.provider)
         const validatorAddress = await validator.getAddress()
-        const vaultAddress = await this.calculateAddress(saltNonce, [validatorAddress], intializorAddress)
-        const setupHash = await initializor.callStatic.generateSetupHashForAddress(
+        const vaultAddress = await this.calculateAddress(saltNonce, [validatorAddress])
+        const setupHash = await this.factoryInstance.callStatic.generateSetupHash(
             vaultAddress,
             this.config.vaultImplementationAddress,
             setupTransaction.to,

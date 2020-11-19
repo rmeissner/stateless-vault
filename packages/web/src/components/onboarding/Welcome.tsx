@@ -7,6 +7,7 @@ import { Button } from '@gnosis.pm/safe-react-components'
 import { loadLastSelectedVault, loadVaults, setLastSelectedVault, setVault } from 'src/logic/vaultRepository'
 import { useHistory } from 'react-router'
 import { undefinedOnError } from 'src/utils/general'
+import VaultCreationDialog from '../vault/settings/VaultCreationDialog'
 
 const OnboardingContainer = styled.main`
   display: flex;
@@ -28,6 +29,7 @@ const Welcome: React.FC = () => {
   const [vaultName, setVaultName] = React.useState("")
   const [vaultAddress, setVaultAddress] = React.useState("")
   const [inputError, setInputError] = React.useState<string | undefined>()
+  const [showVaultCreation, setShowVaultCreation] = React.useState(false)
   const addVault = React.useCallback(async () => {
     try {
       const cleanAddress = utils.getAddress(vaultAddress)
@@ -90,6 +92,8 @@ const Welcome: React.FC = () => {
         {vaultAddress}
       </TextField>
       <Button size="lg" color="primary" onClick={addVault}>Add Vault</Button>
+      <Button size="lg" color="secondary" onClick={() => setShowVaultCreation(true)}>Create Vault</Button>
+      <VaultCreationDialog open={showVaultCreation} onClose={() => setShowVaultCreation(false)} />
     </OnboardingContainer>
   )
 }

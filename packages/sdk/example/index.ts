@@ -32,9 +32,8 @@ interface RelayEstimation {
 
 const getOrCreateRelayed = async (salt: string): Promise<Vault> => {
     const factory = new RelayedVaultFactory({
-        factoryAddress: proxyFactoryAddress,
+        factoryAddress: RelayedFactory.networks[network].address,
         vaultImplementationAddress: StatelessVault.networks[network].address,
-        relayFactoryAddress: RelayedFactory.networks[network].address,
         provider
     })
     const signers = [await signer.getAddress()]

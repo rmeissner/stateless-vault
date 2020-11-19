@@ -5,8 +5,7 @@ import { buildValidationData } from './utils/proof';
 import { pullWithKeccak } from './utils/ipfs';
 import { prepareEthSignSignatureForSafe } from './utils/signatures';
 import StatelessVault from '@rmeissner/stateless-vault-contracts/build/contracts/StatelessVault.json';
-import Initializor from '@rmeissner/stateless-vault-contracts/build/contracts/Initializor.json';
-import RelayedFactory from '@rmeissner/stateless-vault-contracts/build/contracts/ProxyFactoryWithInitializor.json';
+import RelayedFactory from '@rmeissner/stateless-vault-contracts/build/contracts/ProxyFactoryWithInitializor2.json';
 export { pullWithKeccak };
 export class BaseFactory {
     constructor() {
@@ -47,31 +46,19 @@ export class LocalVaultFactory extends BaseFactory {
 export class RelayedVaultFactory extends BaseFactory {
     constructor(config) {
         super();
-        this.initializorInterface = Contract.getInterface(Initializor.abi);
         this.config = config;
-        this.relayFactoryInstance = new Contract(config.relayFactoryAddress, RelayedFactory.abi, config.provider);
-        this.factoryInstance = new Contract(config.factoryAddress, FactoryAbi, config.provider);
+        this.factoryInstance = new Contract(config.factoryAddress, RelayedFactory.abi, config.provider);
     }
-    async calculateAddress(saltNonce, validators, intializor) {
-        const proxyCreationData = this.initializorInterface.encodeFunctionData("setValidators", [validators]);
-        const intializorAddress = intializor || await this.relayFactoryInstance.callStatic.initializor();
-        const initializerHash = utils.solidityKeccak256(["bytes"], [proxyCreationData]);
-        const salt = utils.solidityKeccak256(['bytes32', 'uint256'], [initializerHash, saltNonce]);
-        const proxyCreationCode = await this.factoryInstance.proxyCreationCode();
-        const proxyDeploymentCode = utils.solidityPack(['bytes', 'uint256'], [proxyCreationCode, intializorAddress]);
-        const proxyDeploymentCodeHash = utils.solidityKeccak256(["bytes"], [proxyDeploymentCode]);
-        const address = utils.solidityKeccak256(['bytes1', 'address', 'bytes32', 'bytes32'], ["0xFF", this.config.factoryAddress, salt, proxyDeploymentCodeHash]);
-        return "0x" + address.slice(-40);
+    async calculateAddress(saltNonce, validators) {
+        return await this.factoryInstance.callStatic.calculateProxyAddress(validators, saltNonce);
     }
     saltNonce(saltString) {
         return utils.keccak256(Buffer.from(saltString || `${new Date()}`));
     }
     async relayData(validator, setupTransaction, saltNonce) {
-        const intializorAddress = await this.relayFactoryInstance.callStatic.initializor();
-        const initializor = new Contract(intializorAddress, this.initializorInterface, this.config.provider);
         const validatorAddress = await validator.getAddress();
-        const vaultAddress = await this.calculateAddress(saltNonce, [validatorAddress], intializorAddress);
-        const setupHash = await initializor.callStatic.generateSetupHashForAddress(vaultAddress, this.config.vaultImplementationAddress, setupTransaction.to, setupTransaction.value, setupTransaction.data, setupTransaction.operation, utils.solidityPack(["address[]"], [[validatorAddress]]));
+        const vaultAddress = await this.calculateAddress(saltNonce, [validatorAddress]);
+        const setupHash = await this.factoryInstance.callStatic.generateSetupHash(vaultAddress, this.config.vaultImplementationAddress, setupTransaction.to, setupTransaction.value, setupTransaction.data, setupTransaction.operation, utils.solidityPack(["address[]"], [[validatorAddress]]));
         const signatures = prepareEthSignSignatureForSafe(await validator.signMessage(utils.arrayify(setupHash)));
         return {
             implementation: this.config.vaultImplementationAddress,

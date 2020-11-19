@@ -1,3 +1,4 @@
+import { RelayDeployment } from '@rmeissner/stateless-vault-sdk'
 import { Vault, VaultTransaction } from '@rmeissner/stateless-vault-sdk'
 import axios from 'axios'
 import { BigNumber } from 'ethers'
@@ -72,5 +73,17 @@ export const requestFee = async (tx: MetaTransaction): Promise<RelayEstimation> 
 export const relayTransaction = async (vault: Vault, transaction: VaultTransaction, signatures: string[]): Promise<string> => {
     const execData = await vault.buildExecData(transaction, signatures)
     const response = await axios.post(`${relayUrl}/v1/transactions/execute/vault`, execData)
+    return response.data
+}
+
+export const relayCreation = async (data: RelayDeployment): Promise<string> => {
+    const transaction = {
+        safeTxGas: "0x00",
+        ...data.transaction
+    }
+    const response = await axios.post(`${relayUrl}/v1/deployment/execute`, {
+        ...data,
+        transaction
+    })
     return response.data
 }
