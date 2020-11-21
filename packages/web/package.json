@@ -6,7 +6,7 @@
   "license": "LGPL-3.0-only",
   "private": true,
   "dependencies": {
-    "@gnosis.pm/safe-apps-sdk": "https://github.com/gnosis/safe-apps-sdk#a6c168b",
+    "@gnosis.pm/safe-apps-sdk": "https://github.com/gnosis/safe-apps-sdk.git#8cf9681",
     "@gnosis.pm/safe-react-components": "^0.3.0",
     "@material-ui/core": "^4.11.0",
     "@material-ui/icons": "^4.9.1",
@@ -26,7 +26,6 @@
     "@walletconnect/web3-provider": "^1.3.1",
     "ethereum-blockies-base64": "^1.0.2",
     "ethers": "^5.0.19",
-    "gh-pages": "^3.1.0",
     "ipfs-http-client": "^48.1.0",
     "prettier": "^2.1.2",
     "react": "17.0.1",
@@ -54,6 +53,7 @@
   "devDependencies": {
     "@types/dotenv": "^8.2.0",
     "dotenv": "^8.2.0",
+    "gh-pages": "^3.1.0",
     "react-app-rewired": "^2.1.6"
   },
   "scripts": {

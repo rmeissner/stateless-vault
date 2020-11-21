@@ -10,7 +10,7 @@ let localProvider = new providers.JsonRpcProvider({
 
 let localSigner: Signer | undefined = undefined
 
-export const loadProvider = (): providers.Provider => {
+export const loadProvider = (): providers.JsonRpcProvider => {
     return localProvider
 }
 
@@ -36,7 +36,7 @@ export const getSignerAddress = async (): Promise<string | undefined> => {
     return await signer.getAddress()
 }
 
-const hasAppSigner = (): boolean => {
+export const hasAppSigner = (): boolean => {
     return !!localStorage.getItem(WALLET_STORAGE_KEY)
 }
 
@@ -48,6 +48,12 @@ const getAppSigner = async (): Promise<Wallet> => {
         localStorage.setItem(WALLET_STORAGE_KEY, await wallet.encrypt(WALLET_PASSWORD))
     }
     return wallet
+}
+
+export const getAppSignerAddress = async (): Promise<string | undefined> => {
+    if (!hasAppSigner()) return undefined
+    const appSigner = await getAppSigner()
+    return appSigner.address
 }
 
 export const setAppSigner = async () => {

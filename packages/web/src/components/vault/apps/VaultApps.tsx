@@ -1,10 +1,15 @@
 import * as React from 'react'
 import { Vault } from '@rmeissner/stateless-vault-sdk';
 import { createStyles, WithStyles, withStyles } from '@material-ui/core';
-import { iframeMessageHandler, sendMessageToIframe, MessageHandlers } from './messaging';
-import { INTERFACE_MESSAGES, LowercaseNetworks, RequestId, Transaction } from '@gnosis.pm/safe-apps-sdk'
-import { chainName } from 'src/utils/config';
+import { FrameCommunicator } from './messaging';
+import { chainName, defaultAppUrl } from 'src/utils/config';
 import TransactionProposalDialog from './TransactionProposalDialog';
+import {
+    LowercaseNetworks,
+    RequestId,
+    Transaction
+} from '@gnosis.pm/safe-apps-sdk'
+import { loadProvider } from 'src/logic/ethereumRepository';
 
 const styles = createStyles({
     appContainer: {
@@ -26,80 +31,38 @@ interface ProposalParams {
 
 const VaultApps: React.FC<Props> = ({ vault, classes }) => {
     const [proposalParams, setProposalParams] = React.useState<ProposalParams | undefined>(undefined)
-    const appUrl = "https://apps.gnosis-safe.io/tx-builder"
+    const appUrl = defaultAppUrl
     const appFrame = React.useRef<HTMLIFrameElement>(null)
-    const handlers: MessageHandlers = React.useMemo(() => {
-        return {
-            onSDKIntitalized: () => {
-                const iframe = appFrame.current
-                if (!iframe) return
-                sendMessageToIframe(
-                    iframe,
-                    appUrl,
-                    {
-                        messageId: INTERFACE_MESSAGES.ON_SAFE_INFO,
-                        data: {
-                            safeAddress: vault.address,
-                            network: chainName as LowercaseNetworks,
-                            ethBalance: "0",
-                        },
-                    }
-                )
-            },
+    const communicator: FrameCommunicator = React.useMemo(() => {
+        return new FrameCommunicator(appFrame, appUrl, {
+            safeAddress: vault.address,
+            network: chainName as LowercaseNetworks,
+            ethBalance: "0",
+        }, {
             onTransactionProposal: (transactions, requestId) => {
                 if (transactions.length == 0) return
                 setProposalParams({ transactions, requestId })
             }
-        }
+        }, loadProvider())
     }, [vault, appFrame, appUrl, setProposalParams])
 
     const handleTransactionConfirmation = React.useCallback(async (requestId: RequestId, vaultHash: string) => {
-        const iframe = appFrame.current
-        if (!iframe) return
-        sendMessageToIframe(
-            iframe,
-            appUrl,
-            {
-                messageId: INTERFACE_MESSAGES.TRANSACTION_CONFIRMED,
-                data: {
-                    safeTxHash: vaultHash
-                },
-            },
-            requestId
-        )
+        communicator.sendResponse({ safeTxHash: vaultHash }, requestId)
         setProposalParams(undefined)
-    }, [appFrame, appUrl, setProposalParams])
+    }, [communicator, setProposalParams])
 
     const handleTransactionRejection = React.useCallback(async (requestId: RequestId, message: string) => {
-        const iframe = appFrame.current
-        if (!iframe) return
-        sendMessageToIframe(
-            iframe,
-            appUrl,
-            {
-                messageId: INTERFACE_MESSAGES.TRANSACTION_REJECTED,
-                data: { message },
-            },
-            requestId
-        )
+        communicator.sendError(message, requestId)
         setProposalParams(undefined)
-    }, [appFrame, appUrl, setProposalParams])
-
-    const loaded = React.useCallback(async () => {
-        handlers.onSDKIntitalized()
-    }, [handlers])
+    }, [communicator, setProposalParams])
 
     React.useEffect(() => {
-        const messageHandler = iframeMessageHandler(appUrl, handlers)
-        window.addEventListener('message', messageHandler)
-        return () => {
-            window.removeEventListener('message', messageHandler)
-        }
-    }, [appFrame, appUrl, handlers])
+        return communicator.connect(window)
+    }, [communicator])
 
     return (
         <>
-            <iframe ref={appFrame} onLoad={loaded} src={appUrl} className={classes.appContainer} />
+            <iframe ref={appFrame} src={appUrl} className={classes.appContainer} />
             { proposalParams && (<TransactionProposalDialog
                 open={true}
                 vault={vault}

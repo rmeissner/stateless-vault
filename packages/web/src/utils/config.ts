@@ -21,3 +21,5 @@ export const factoryAddress: string = process.env.REACT_APP_FACTORY_ADDRESS!!
 export const vaultImplementationAddress: string = process.env.REACT_APP_VAULT_IMPLEMENTATION_ADDRESS!!
 
 export const relayUrl: string = process.env.REACT_APP_RELAY_URL!!
+
+export const defaultAppUrl: string = process.env.REACT_APP_DEFAULT_APP_URL!!

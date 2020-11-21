@@ -8,7 +8,7 @@ import { buildMultiSend, metaTxToVaultTx } from '../utils/multisend';
 import { RelayEstimation, relayTransaction, requestFee } from 'src/logic/relayRepository';
 import { addTransactionProposal } from 'src/logic/vaultRepository';
 import { relayUrl } from 'src/utils/config';
-import { getSignerAddress, loadSigner } from 'src/logic/ethereumRepository';
+import { getSignerAddress, loadSigner, hasAppSigner, setAppSigner } from 'src/logic/ethereumRepository';
 
 const styles = createStyles({
     item: {
@@ -67,6 +67,9 @@ const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, tran
         try {
             const config = await vault.loadConfig()
             const signerAddress = await getSignerAddress()
+            if (!signerAddress && hasAppSigner()) {
+                await setAppSigner()
+            }
             const canSubmit = config.threshold.eq(BigNumber.from(1)) && !!signerAddress && config.signers.indexOf(signerAddress) >= 0
             const transaction = await buildMultiSend(transactions)
             const estimation = await requestFee(transaction)
@@ -115,7 +118,7 @@ const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, tran
                 <Button onClick={rejectTx} color="default">
                     Cancel
                 </Button>
-                <Button onClick={proposeTx} color="primary" disabled={!estimate}>
+                <Button onClick={proposeTx} color="primary" disabled={!estimate || !estimate.canSubmit}>
                     Confirm
                 </Button>
             </DialogActions>

@@ -1456,9 +1456,12 @@
     "@ethersproject/properties" "^5.0.3"
     "@ethersproject/strings" "^5.0.4"
 
-"@gnosis.pm/safe-apps-sdk@https://github.com/gnosis/safe-apps-sdk#a6c168b":
-  version "0.4.2"
-  resolved "https://github.com/gnosis/safe-apps-sdk#a6c168b9d9d663a2e9f5cdd364998034675b16fa"
+"@gnosis.pm/safe-apps-sdk@https://github.com/gnosis/safe-apps-sdk.git#8cf9681":
+  version "1.0.0"
+  resolved "https://github.com/gnosis/safe-apps-sdk.git#8cf9681f9edbcda0c081d613cbda69203838953c"
+  dependencies:
+    semver "^7.3.2"
+    web3-core "^1.3.0"
 
 "@gnosis.pm/safe-contracts@^1.2.0":
   version "1.2.0"
@@ -15678,7 +15681,7 @@ web3-core@1.2.9:
     web3-core-requestmanager "1.2.9"
     web3-utils "1.2.9"
 
-web3-core@1.3.0:
+web3-core@1.3.0, web3-core@^1.3.0:
   version "1.3.0"
   resolved "https://registry.yarnpkg.com/web3-core/-/web3-core-1.3.0.tgz#b818903738461c1cca0163339e1d6d3fa51242cf"
   integrity sha512-BwWvAaKJf4KFG9QsKRi3MNoNgzjI6szyUlgme1qNPxUdCkaS3Rdpa0VKYNHP7M/YTk82/59kNE66mH5vmoaXjA==
