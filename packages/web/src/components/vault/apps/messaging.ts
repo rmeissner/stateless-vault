@@ -35,6 +35,7 @@ export class FrameCommunicator {
             console.error('ThirdPartyApp: A message was received without message id.')
             return
         }
+        console.log(`Received ${method} with ${JSON.stringify(params)}`)
 
         switch (method) {
             case 'sendTransactions': {
@@ -84,10 +85,9 @@ export class FrameCommunicator {
     }
 
     onMessage(message: SDKMessageEvent) {
-        if (message.origin === window.origin) {
+        if (message.source === window) {
             return
         }
-        console.log(this)
         if (!this.appUrl.includes(message.origin)) {
             console.error(`ThirdPartyApp: A message was received from an unknown origin ${message.origin}`)
             return
