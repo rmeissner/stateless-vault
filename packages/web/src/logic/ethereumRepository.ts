@@ -45,7 +45,7 @@ const getAppSigner = async (): Promise<Wallet> => {
     const wallet = walletState ? await Wallet.fromEncryptedJson(walletState, WALLET_PASSWORD) : Wallet.createRandom()
     if (!walletState) {
         console.log("Created new app wallet")
-        localStorage.setItem(WALLET_STORAGE_KEY, await wallet.encrypt(WALLET_PASSWORD))
+        localStorage.setItem(WALLET_STORAGE_KEY, await wallet.encrypt(WALLET_PASSWORD, { scrypt: { N: 2 } }))
     }
     return wallet
 }
