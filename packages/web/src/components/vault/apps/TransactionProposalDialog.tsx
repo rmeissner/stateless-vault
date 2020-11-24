@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Vault, VaultSigner } from '@rmeissner/stateless-vault-sdk';
-import { Box, Button, Checkbox, Typography, createStyles, withStyles, WithStyles, List, ListItem, Dialog, DialogContent, DialogTitle, DialogActions } from '@material-ui/core'
+import { Box, Button, Checkbox, Typography, createStyles, withStyles, WithStyles, List, ListItem, CircularProgress, Dialog, DialogContent, DialogTitle, DialogActions } from '@material-ui/core'
 import { RequestId, Transaction } from '@gnosis.pm/safe-apps-sdk'
 import AccountInfo from 'src/components/WalletInfo';
 import { utils, BigNumber } from 'ethers';
@@ -34,9 +34,11 @@ interface Estimate {
 
 const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, transactions, requestId, app, onConfirm, onReject }) => {
     const [submitTx, setSubmitTx] = React.useState(true)
+    const [loading, setLoading] = React.useState<boolean>(false)
     const [estimate, setEstimate] = React.useState<Estimate | undefined>(undefined)
     const proposeTx = React.useCallback(async () => {
         if (!estimate) return
+        setLoading(true)
         try {
             const meta = {
                 app: app,
@@ -62,8 +64,10 @@ const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, tran
         } catch (e) {
             console.error(e)
         }
+        setLoading(false)
     }, [vault, app, requestId, estimate, submitTx, onConfirm])
     const estimateTx = React.useCallback(async () => {
+        setLoading(true)
         try {
             const config = await vault.loadConfig()
             const signerAddress = await getSignerAddress()
@@ -81,11 +85,13 @@ const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, tran
         } catch (e) {
             console.error(e)
         }
+        setLoading(false)
     }, [vault, transactions])
     React.useEffect(() => {
         estimateTx()
     }, [estimateTx])
     const rejectTx = React.useCallback(async () => {
+        setEstimate(undefined)
         onReject(requestId, "User rejected transaction")
     }, [requestId, onReject])
     return (
@@ -97,15 +103,19 @@ const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, tran
             aria-describedby="scroll-dialog-description">
             <DialogTitle id="scroll-dialog-title">Confirm Transaction</DialogTitle>
             <DialogContent dividers={true}>
-                <List>
-                    {transactions.map((transaction) => (
-                        <ListItem className={classes.item}>
-                            <Box><AccountInfo address={transaction.to} textColor="text" /></Box>
-                            <Typography>{utils.formatEther(transaction.value)} ETH</Typography>
-                            <Box textOverflow="ellipsis" overflow="hidden">{transaction.data}</Box>
-                        </ListItem>
-                    ))}
-                </List>
+                {loading ? (
+                    <CircularProgress />
+                ) : (
+                        <List>
+                            {transactions.map((transaction) => (
+                                <ListItem className={classes.item}>
+                                    <Box><AccountInfo address={transaction.to} textColor="text" /></Box>
+                                    <Typography>{utils.formatEther(transaction.value)} ETH</Typography>
+                                    <Box textOverflow="ellipsis" overflow="hidden">{transaction.data}</Box>
+                                </ListItem>
+                            ))}
+                        </List>
+                    )}
             </DialogContent>
             { estimate?.canSubmit && (
                 <Box>
@@ -118,7 +128,7 @@ const TransactionProposalDialog: React.FC<Props> = ({ classes, open, vault, tran
                 <Button onClick={rejectTx} color="default">
                     Cancel
                 </Button>
-                <Button onClick={proposeTx} color="primary" disabled={!estimate || !estimate.canSubmit}>
+                <Button onClick={proposeTx} color="primary" disabled={!estimate || !estimate.canSubmit || loading}>
                     Confirm
                 </Button>
             </DialogActions>

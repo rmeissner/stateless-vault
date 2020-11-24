@@ -5,10 +5,11 @@ import WalletConnectProvider from "@walletconnect/web3-provider";
 import { chainId, rpcUrl } from 'src/utils/config';
 
 type Props = {
-  onConnect: Function
+  onConnect: (provider: any) => void,
+  onDialogOpen?: (visible: boolean) => void
 }
 
-const ConnectButton: React.FC<Props> = ({ onConnect }) => {
+const ConnectButton: React.FC<Props> = ({ onConnect, onDialogOpen }) => {
   const connect = React.useCallback(async () => {
     const web3Modal = new Web3Modal({
       network: "rinkeby",
@@ -23,9 +24,12 @@ const ConnectButton: React.FC<Props> = ({ onConnect }) => {
         }
       }
     });
+    if (onDialogOpen) onDialogOpen(true)
     try { onConnect(await web3Modal.connect()) }
     catch (e) {
       console.log('Web3Connect Modal Closed: ', e) // modal has closed
+    } finally {
+      if (onDialogOpen) onDialogOpen(false)
     }
   }, [onConnect])
   return (

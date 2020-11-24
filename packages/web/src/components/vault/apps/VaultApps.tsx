@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Vault } from '@rmeissner/stateless-vault-sdk';
-import { createStyles, WithStyles, withStyles } from '@material-ui/core';
+import { CircularProgress, createStyles, WithStyles, withStyles } from '@material-ui/core';
 import { FrameCommunicator } from './messaging';
 import { chainName, defaultAppUrl } from 'src/utils/config';
 import TransactionProposalDialog from './TransactionProposalDialog';
@@ -9,7 +9,8 @@ import {
     RequestId,
     Transaction
 } from '@gnosis.pm/safe-apps-sdk'
-import { loadProvider } from 'src/logic/ethereumRepository';
+import { getSignerAddress, loadProvider } from 'src/logic/ethereumRepository';
+import SelectAccount from 'src/components/account/SelectAccount';
 
 const styles = createStyles({
     appContainer: {
@@ -30,6 +31,9 @@ interface ProposalParams {
 }
 
 const VaultApps: React.FC<Props> = ({ vault, classes }) => {
+    const [loading, setLoading] = React.useState<boolean>(false)
+    const [signerAddress, setSignerAddress] = React.useState<string | undefined>(undefined)
+    const [canUseApps, setCanUseApps] = React.useState<boolean>(false)
     const [proposalParams, setProposalParams] = React.useState<ProposalParams | undefined>(undefined)
     const appUrl = defaultAppUrl
     const appFrame = React.useRef<HTMLIFrameElement>(null)
@@ -60,6 +64,40 @@ const VaultApps: React.FC<Props> = ({ vault, classes }) => {
         return communicator.connect(window)
     }, [communicator])
 
+    React.useEffect(() => {
+        const loadSigner = async () => {
+            setLoading(true)
+            try {
+                const signerAddress = await getSignerAddress()
+                setSignerAddress(signerAddress)
+            } catch (e) {
+                console.error(e)
+            } finally {
+                setLoading(false)
+            }
+        }
+        loadSigner()
+    }, [setSignerAddress])
+
+    React.useEffect(() => {
+        if (!signerAddress) return
+        const checkSigner = async () => {
+            setLoading(true)
+            try {
+                const config = await vault.loadConfig()
+                setCanUseApps(config.signers.indexOf(signerAddress) >= 0)
+            } catch (e) {
+                console.error(e)
+            } finally {
+                setLoading(false)
+            }
+        }
+        checkSigner()
+    }, [vault, signerAddress])
+
+    if (loading) return (<CircularProgress />)
+    if (!signerAddress) return (<SelectAccount onProgress={setLoading} onSelected={setSignerAddress} />)
+    if (!canUseApps) return (<p>You need to be an owner to use Apps</p>)
     return (
         <>
             <iframe ref={appFrame} src={appUrl} className={classes.appContainer} />
