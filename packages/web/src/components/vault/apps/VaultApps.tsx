@@ -41,7 +41,6 @@ const VaultApps: React.FC<Props> = ({ vault, classes }) => {
         return new FrameCommunicator(appFrame, appUrl, {
             safeAddress: vault.address,
             network: chainName as LowercaseNetworks,
-            ethBalance: "0",
         }, {
             onTransactionProposal: (transactions, requestId) => {
                 if (transactions.length == 0) return
